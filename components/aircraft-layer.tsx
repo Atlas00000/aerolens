@@ -34,7 +34,7 @@ export function AircraftLayer() {
         matrix.setPosition(position.x, position.y + floatOffset, position.z)
         
         // Scale based on selection with minimal pulsing for professional look
-        const baseScale = selectedAircraft?.icao24 === plane.icao24 ? 0.012 : 0.008
+        const baseScale = selectedAircraft?.icao24 === plane.icao24 ? 0.015 : 0.012
         const pulseScale = 1 + Math.sin(time * 2 + index * 0.1) * 0.05
         const finalScale = baseScale * pulseScale
         matrix.scale(new THREE.Vector3(finalScale, finalScale, finalScale))
@@ -53,9 +53,12 @@ export function AircraftLayer() {
   })
 
   const handleClick = (event: any) => {
+    console.log("Click event:", event)
     if (event.object === instancedMeshRef.current) {
       const index = event.instanceId
+      console.log("Clicked aircraft index:", index)
       if (index !== undefined && aircraftArray[index]) {
+        console.log("Setting selected aircraft:", aircraftArray[index])
         setSelectedAircraft(aircraftArray[index])
       }
     }
@@ -83,6 +86,8 @@ export function AircraftLayer() {
   // Debug logging
   console.log("Aircraft count:", aircraftArray.length)
   console.log("Sample aircraft:", aircraftArray[0])
+  console.log("Selected aircraft:", selectedAircraft)
+  console.log("Aircraft object keys:", Object.keys(aircraft))
 
   if (aircraftArray.length === 0) {
     console.log("No aircraft to render")
@@ -114,9 +119,9 @@ export function AircraftLayer() {
     })
   }
 
-  // Temporary fallback: render individual meshes for debugging with enhanced visuals
-  if (aircraftArray.length < 10) {
-    console.log("Using individual meshes for debugging")
+  // Use individual meshes for better interaction when aircraft count is low
+  if (aircraftArray.length < 20) {
+    console.log("Using individual meshes for better interaction")
     return (
       <group ref={groupRef}>
         {aircraftArray.map((plane, index) => {
@@ -128,7 +133,12 @@ export function AircraftLayer() {
             <group key={plane.icao24} position={[position.x, position.y, position.z]}>
               {/* Main aircraft mesh */}
               <mesh
-                onClick={() => setSelectedAircraft(plane)}
+                scale={[0.015, 0.015, 0.015]}
+                onClick={(event) => {
+                  console.log("Individual mesh clicked:", plane)
+                  event.stopPropagation()
+                  setSelectedAircraft(plane)
+                }}
                 onPointerOver={() => {
                   window.dispatchEvent(new CustomEvent('aircraft-hover', {
                     detail: plane
@@ -188,11 +198,11 @@ export function AircraftLayer() {
         <meshStandardMaterial
           color={new THREE.Color(0x10b981)}
           emissive={new THREE.Color(0x059669)}
-          emissiveIntensity={0.3}
+          emissiveIntensity={0.5}
           metalness={0.6}
           roughness={0.4}
           transparent
-          opacity={0.8}
+          opacity={0.9}
         />
       </instancedMesh>
     </group>
