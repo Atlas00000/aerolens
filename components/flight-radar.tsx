@@ -6,17 +6,20 @@ import { Stats, OrbitControls } from "@react-three/drei"
 import { Globe } from "./globe"
 import { AircraftLayer } from "./aircraft-layer"
 import { UI } from "./ui"
+import { AnimatedBackground } from "./animated-background"
+import { NotificationSystem } from "./notification-system"
 import { useFlightStore } from "@/lib/stores/flight-store"
 import { useEffect, useState, Suspense } from "react"
+import * as THREE from "three"
 
 // Error boundary component for 3D content
 function ErrorFallback() {
   return (
-    <div className="flex items-center justify-center h-full bg-gray-900 text-white">
-      <div className="text-center">
-        <div className="text-2xl mb-2">🌍</div>
-        <div className="text-lg mb-2">3D Globe Loading...</div>
-        <div className="text-sm text-gray-400">Please wait while we initialize the 3D environment</div>
+    <div className="flex items-center justify-center h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+      <div className="text-center animate-fade-in">
+        <div className="text-4xl mb-4 animate-float">🌍</div>
+        <div className="text-xl mb-2 font-semibold">3D Environment Error</div>
+        <div className="text-sm text-slate-400">Please refresh the page to try again</div>
       </div>
     </div>
   )
@@ -25,11 +28,11 @@ function ErrorFallback() {
 // Loading component for 3D content
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center h-full bg-gray-900 text-white">
-      <div className="text-center">
-        <div className="animate-spin text-2xl mb-2">🌍</div>
-        <div className="text-lg mb-2">Loading 3D Globe...</div>
-        <div className="text-sm text-gray-400">Initializing Three.js components</div>
+    <div className="flex items-center justify-center h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+      <div className="text-center animate-fade-in">
+        <div className="text-4xl mb-4 animate-spin">🌍</div>
+        <div className="text-xl mb-2 font-semibold">Loading 3D Globe...</div>
+        <div className="text-sm text-slate-400">Initializing Three.js components</div>
       </div>
     </div>
   )
@@ -49,7 +52,10 @@ export default function FlightRadar() {
   }
 
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-screen overflow-hidden">
+      {/* Animated Background */}
+      <AnimatedBackground />
+      
       <ErrorBoundary onError={() => setHasError(true)}>
         <Canvas
           camera={{
@@ -59,22 +65,36 @@ export default function FlightRadar() {
             far: 1000,
           }}
           gl={{ 
-            antialias: false, // Disable antialiasing for better performance
+            antialias: true,
             alpha: false,
             powerPreference: "high-performance",
             stencil: false,
-            depth: true
+            depth: true,
+            preserveDrawingBuffer: false,
+            logarithmicDepthBuffer: true,
           }}
-          frameloop="demand" // Only render when needed
-          performance={{ min: 0.5 }} // Reduce quality when performance is low
+          frameloop="always"
+          performance={{ min: 0.8 }}
           onError={(error) => {
             console.error("Canvas error:", error)
             setHasError(true)
           }}
         >
           <Suspense fallback={null}>
+            {/* Enhanced lighting setup */}
             <ambientLight intensity={0.4} />
-            <directionalLight position={[10, 10, 5]} intensity={1} />
+            <directionalLight 
+              position={[10, 10, 5]} 
+              intensity={1.2}
+              castShadow
+              shadow-mapSize-width={2048}
+              shadow-mapSize-height={2048}
+            />
+            <pointLight 
+              position={[-10, -10, -5]} 
+              intensity={0.5}
+              color={new THREE.Color(0x3b82f6)}
+            />
 
             <Globe />
             <AircraftLayer />
@@ -84,34 +104,33 @@ export default function FlightRadar() {
               enableZoom={true}
               enableRotate={true}
               zoomSpeed={0.6}
-              panSpeed={0.5}
+              panSpeed={0.6}
               rotateSpeed={0.4}
-              minDistance={1.5}
-              maxDistance={10}
-              enableDamping={false} // Disable damping for better performance
-              dampingFactor={0.05}
-              enableAutoRotate={false} // We handle auto-rotation in the Globe component
-              autoRotateSpeed={0.5}
+              minDistance={1.2}
+              maxDistance={8}
+              enableDamping={true}
+              dampingFactor={0.12}
+              enableAutoRotate={false}
+              autoRotateSpeed={0.12}
               onStart={() => {
-                // Dispatch custom event to notify globe of user interaction
                 window.dispatchEvent(new CustomEvent('user-interaction-start'))
               }}
               onChange={() => {
-                // Dispatch custom event to notify globe of user interaction
                 window.dispatchEvent(new CustomEvent('user-interaction-change'))
               }}
               onEnd={() => {
-                // Dispatch custom event to notify globe of user interaction end
                 window.dispatchEvent(new CustomEvent('user-interaction-end'))
               }}
             />
 
-            <Stats />
+            {/* Performance stats in development */}
+            {process.env.NODE_ENV === 'development' && <Stats />}
           </Suspense>
         </Canvas>
       </ErrorBoundary>
 
       <UI />
+      <NotificationSystem />
     </div>
   )
 }

@@ -4,16 +4,24 @@ import { useFlightStore } from "@/lib/stores/flight-store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Plane, Wifi, WifiOff, X, RotateCcw } from "lucide-react"
+import { Plane, Wifi, WifiOff, X, RotateCcw, Globe, Activity, MapPin, Clock, TrendingUp } from "lucide-react"
 import { useState, useEffect } from "react"
+import { FlightStats } from "./flight-stats"
 
 export function UI() {
   const { aircraft, selectedAircraft, setSelectedAircraft, isConnected, lastUpdate } = useFlightStore()
   const [hoveredAircraft, setHoveredAircraft] = useState<any>(null)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [isAutoSpinning, setIsAutoSpinning] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
 
   const aircraftCount = Object.keys(aircraft).length
+
+  // Animate in on mount
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 1000)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Listen for hover events from the 3D scene
   useEffect(() => {
@@ -25,14 +33,7 @@ export function UI() {
       setHoveredAircraft(event.detail)
     }
 
-    // Listen for auto-spin state changes
-    const handleAutoSpinStart = () => {
-      setIsAutoSpinning(true)
-    }
 
-    const handleAutoSpinStop = () => {
-      setIsAutoSpinning(false)
-    }
 
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('aircraft-hover', handleAircraftHover as EventListener)
@@ -47,121 +48,226 @@ export function UI() {
     }
   }, [])
 
+  if (!isVisible) return null
+
   return (
     <>
       {/* Header */}
-      <div className="absolute top-4 left-4 z-10">
-        <Card className="bg-black/80 border-gray-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white flex items-center gap-2">
-              <Plane className="w-5 h-5" />
-              AeroLens
+      <div className={`absolute top-6 left-6 z-10 transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+        <Card className="glass-effect-dark border-white/10 shadow-2xl hover-lift">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-white flex items-center gap-3">
+              <div className="relative">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Plane className="w-4 h-4 text-white" />
+                </div>
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-lg blur-sm"></div>
+              </div>
+              <div>
+                <div className="text-gradient font-bold text-xl">AeroLens</div>
+                <div className="text-xs text-slate-400 font-normal">Flight Tracker</div>
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-center gap-2">
+          <CardContent className="space-y-4">
+            {/* Connection Status */}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
+              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400 animate-pulse-glow' : 'bg-red-400'}`}></div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-white">
+                  {isConnected ? "Connected" : "Disconnected"}
+                </div>
+                <div className="text-xs text-slate-400">
+                  {isConnected ? "Live data streaming" : "Reconnecting..."}
+                </div>
+              </div>
               {isConnected ? <Wifi className="w-4 h-4 text-green-400" /> : <WifiOff className="w-4 h-4 text-red-400" />}
-              <span className="text-sm text-gray-300">{isConnected ? "Connected" : "Disconnected"}</span>
             </div>
-            <div className="text-sm text-gray-300">
-              Aircraft: <Badge variant="secondary">{aircraftCount}</Badge>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center p-3 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+                <div className="text-2xl font-bold text-gradient-blue">{aircraftCount}</div>
+                <div className="text-xs text-slate-400">Aircraft</div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                <div className="text-2xl font-bold text-green-400">
+                  {Math.round((aircraftCount / 1000) * 100)}%
+                </div>
+                <div className="text-xs text-slate-400">Coverage</div>
+              </div>
             </div>
+
+            {/* Last Update */}
             {lastUpdate && (
-              <div className="text-xs text-gray-400">Last update: {new Date(lastUpdate).toLocaleTimeString()}</div>
-            )}
-            {/* Auto-spin indicator */}
-            {isAutoSpinning && (
-              <div className="flex items-center gap-2 text-xs text-blue-400">
-                <RotateCcw className="w-3 h-3 animate-spin" />
-                <span>Auto-spinning</span>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Clock className="w-3 h-3" />
+                <span>Updated {new Date(lastUpdate).toLocaleTimeString()}</span>
               </div>
             )}
+
+
           </CardContent>
         </Card>
       </div>
 
       {/* Aircraft Details Panel */}
       {selectedAircraft && (
-        <div className="absolute top-4 right-4 z-10">
-          <Card className="bg-black/80 border-gray-700 w-80">
-            <CardHeader className="pb-2">
+        <div className={`absolute top-6 right-6 z-10 transition-all duration-700 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`}>
+          <Card className="glass-effect-dark border-white/10 shadow-2xl w-96 hover-lift">
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-white text-lg">{selectedAircraft.callsign || "Unknown Flight"}</CardTitle>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <Plane className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-white text-lg">
+                      {selectedAircraft.callsign || "Unknown Flight"}
+                    </CardTitle>
+                    <div className="text-xs text-slate-400 font-mono">
+                      {selectedAircraft.icao24}
+                    </div>
+                  </div>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setSelectedAircraft(null)}
-                  className="text-gray-400 hover:text-white"
+                  className="text-slate-400 hover:text-white hover:bg-white/10"
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-gray-400">ICAO24</div>
-                  <div className="text-white font-mono">{selectedAircraft.icao24}</div>
+            <CardContent className="space-y-4">
+              {/* Flight Info Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <MapPin className="w-3 h-3" />
+                    <span>Position</span>
+                  </div>
+                  <div className="text-sm text-white font-mono">
+                    {selectedAircraft.latitude.toFixed(4)}, {selectedAircraft.longitude.toFixed(4)}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-gray-400">Origin Country</div>
-                  <div className="text-white">{selectedAircraft.origin_country}</div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <Globe className="w-3 h-3" />
+                    <span>Country</span>
+                  </div>
+                  <div className="text-sm text-white">
+                    {selectedAircraft.origin_country}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-gray-400">Altitude</div>
-                  <div className="text-white">{selectedAircraft.baro_altitude || "N/A"} ft</div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>Altitude</span>
+                  </div>
+                  <div className="text-sm text-white">
+                    {selectedAircraft.baro_altitude ? `${selectedAircraft.baro_altitude.toLocaleString()} ft` : "N/A"}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-gray-400">Ground Speed</div>
-                  <div className="text-white">{selectedAircraft.velocity || "N/A"} kt</div>
-                </div>
-                <div>
-                  <div className="text-gray-400">Heading</div>
-                  <div className="text-white">{selectedAircraft.true_track || "N/A"}°</div>
-                </div>
-                <div>
-                  <div className="text-gray-400">Vertical Rate</div>
-                  <div className="text-white">{selectedAircraft.vertical_rate || "N/A"} ft/min</div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <Activity className="w-3 h-3" />
+                    <span>Speed</span>
+                  </div>
+                  <div className="text-sm text-white">
+                    {selectedAircraft.velocity ? `${selectedAircraft.velocity} kt` : "N/A"}
+                  </div>
                 </div>
               </div>
-              <div className="pt-2 border-t border-gray-700">
-                <div className="text-gray-400 text-xs">Position</div>
-                <div className="text-white font-mono text-sm">
-                  {selectedAircraft.latitude.toFixed(4)}, {selectedAircraft.longitude.toFixed(4)}
+
+              {/* Additional Details */}
+              <div className="pt-4 border-t border-white/10">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-slate-400 text-xs">Heading</div>
+                    <div className="text-white">
+                      {selectedAircraft.true_track ? `${selectedAircraft.true_track}°` : "N/A"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-slate-400 text-xs">Vertical Rate</div>
+                    <div className="text-white">
+                      {selectedAircraft.vertical_rate ? `${selectedAircraft.vertical_rate} ft/min` : "N/A"}
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Status Badge */}
+              <div className="flex justify-center">
+                <Badge 
+                  variant={selectedAircraft.on_ground ? "secondary" : "default"}
+                  className={`${selectedAircraft.on_ground ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}
+                >
+                  {selectedAircraft.on_ground ? "On Ground" : "In Flight"}
+                </Badge>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Simple Tooltip */}
+      {/* Enhanced Tooltip */}
       {hoveredAircraft && (
         <div 
-          className="fixed z-50 bg-black/90 text-white p-2 rounded text-xs pointer-events-none"
+          className="fixed z-50 glass-effect-dark border-white/10 shadow-2xl p-3 rounded-lg pointer-events-none animate-scale-in"
           style={{ 
-            left: mousePosition.x + 10, 
-            top: mousePosition.y - 10 
+            left: mousePosition.x + 15, 
+            top: mousePosition.y - 15 
           }}
         >
-          <div className="font-bold">{hoveredAircraft.callsign || "Unknown"}</div>
-          <div>Alt: {hoveredAircraft.baro_altitude || "N/A"}ft</div>
-          <div>Speed: {hoveredAircraft.velocity || "N/A"}kt</div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+            <div className="font-bold text-white text-sm">{hoveredAircraft.callsign || "Unknown"}</div>
+          </div>
+          <div className="space-y-1 text-xs">
+            <div className="text-slate-300">
+              Alt: <span className="text-white">{hoveredAircraft.baro_altitude || "N/A"}ft</span>
+            </div>
+            <div className="text-slate-300">
+              Speed: <span className="text-white">{hoveredAircraft.velocity || "N/A"}kt</span>
+            </div>
+            <div className="text-slate-300">
+              Heading: <span className="text-white">{hoveredAircraft.true_track || "N/A"}°</span>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Controls Help */}
-      <div className="absolute bottom-4 left-4 z-10">
-        <Card className="bg-black/80 border-gray-700">
-          <CardContent className="p-3">
-            <div className="text-xs text-gray-300 space-y-1">
-              <div>🖱️ Drag to rotate • Scroll to zoom</div>
-              <div>✈️ Click aircraft for details</div>
-              <div>🌍 Globe auto-spins when idle</div>
+      {/* Enhanced Controls Help */}
+      <div className={`absolute bottom-6 left-6 z-10 transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+        <Card className="glass-effect-dark border-white/10 shadow-2xl">
+          <CardContent className="p-4">
+            <div className="text-sm text-white font-medium mb-3">Controls</div>
+            <div className="space-y-2 text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-white/10 rounded flex items-center justify-center text-xs">🖱️</div>
+                <span>Drag to rotate • Scroll to zoom</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-white/10 rounded flex items-center justify-center text-xs">✈️</div>
+                <span>Click aircraft for details</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-white/10 rounded flex items-center justify-center text-xs">🌍</div>
+                <span>Globe auto-spins when idle</span>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Flight Statistics */}
+      <FlightStats />
     </>
   )
 }
