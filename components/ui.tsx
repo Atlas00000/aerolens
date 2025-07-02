@@ -4,13 +4,14 @@ import { useFlightStore } from "@/lib/stores/flight-store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Plane, Wifi, WifiOff, X } from "lucide-react"
+import { Plane, Wifi, WifiOff, X, RotateCcw } from "lucide-react"
 import { useState, useEffect } from "react"
 
 export function UI() {
   const { aircraft, selectedAircraft, setSelectedAircraft, isConnected, lastUpdate } = useFlightStore()
   const [hoveredAircraft, setHoveredAircraft] = useState<any>(null)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [isAutoSpinning, setIsAutoSpinning] = useState(false)
 
   const aircraftCount = Object.keys(aircraft).length
 
@@ -24,12 +25,25 @@ export function UI() {
       setHoveredAircraft(event.detail)
     }
 
+    // Listen for auto-spin state changes
+    const handleAutoSpinStart = () => {
+      setIsAutoSpinning(true)
+    }
+
+    const handleAutoSpinStop = () => {
+      setIsAutoSpinning(false)
+    }
+
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('aircraft-hover', handleAircraftHover as EventListener)
+    window.addEventListener('auto-spin-start', handleAutoSpinStart)
+    window.addEventListener('auto-spin-stop', handleAutoSpinStop)
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('aircraft-hover', handleAircraftHover as EventListener)
+      window.removeEventListener('auto-spin-start', handleAutoSpinStart)
+      window.removeEventListener('auto-spin-stop', handleAutoSpinStop)
     }
   }, [])
 
@@ -54,6 +68,13 @@ export function UI() {
             </div>
             {lastUpdate && (
               <div className="text-xs text-gray-400">Last update: {new Date(lastUpdate).toLocaleTimeString()}</div>
+            )}
+            {/* Auto-spin indicator */}
+            {isAutoSpinning && (
+              <div className="flex items-center gap-2 text-xs text-blue-400">
+                <RotateCcw className="w-3 h-3 animate-spin" />
+                <span>Auto-spinning</span>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -136,6 +157,7 @@ export function UI() {
             <div className="text-xs text-gray-300 space-y-1">
               <div>🖱️ Drag to rotate • Scroll to zoom</div>
               <div>✈️ Click aircraft for details</div>
+              <div>🌍 Globe auto-spins when idle</div>
             </div>
           </CardContent>
         </Card>

@@ -89,6 +89,21 @@ export default function FlightRadar() {
               minDistance={1.5}
               maxDistance={10}
               enableDamping={false} // Disable damping for better performance
+              dampingFactor={0.05}
+              enableAutoRotate={false} // We handle auto-rotation in the Globe component
+              autoRotateSpeed={0.5}
+              onStart={() => {
+                // Dispatch custom event to notify globe of user interaction
+                window.dispatchEvent(new CustomEvent('user-interaction-start'))
+              }}
+              onChange={() => {
+                // Dispatch custom event to notify globe of user interaction
+                window.dispatchEvent(new CustomEvent('user-interaction-change'))
+              }}
+              onEnd={() => {
+                // Dispatch custom event to notify globe of user interaction end
+                window.dispatchEvent(new CustomEvent('user-interaction-end'))
+              }}
             />
 
             <Stats />
