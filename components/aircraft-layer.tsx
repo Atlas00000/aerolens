@@ -83,11 +83,7 @@ export function AircraftLayer() {
     }))
   }
 
-  // Debug logging
-  console.log("Aircraft count:", aircraftArray.length)
-  console.log("Sample aircraft:", aircraftArray[0])
-  console.log("Selected aircraft:", selectedAircraft)
-  console.log("Aircraft object keys:", Object.keys(aircraft))
+
 
   if (aircraftArray.length === 0) {
     console.log("No aircraft to render")
@@ -121,7 +117,6 @@ export function AircraftLayer() {
 
   // Use individual meshes for better interaction when aircraft count is low
   if (aircraftArray.length < 20) {
-    console.log("Using individual meshes for better interaction")
     return (
       <group ref={groupRef}>
         {aircraftArray.map((plane, index) => {
@@ -133,25 +128,34 @@ export function AircraftLayer() {
             <group key={plane.icao24} position={[position.x, position.y, position.z]}>
               {/* Main aircraft mesh */}
               <mesh
-                scale={[0.015, 0.015, 0.015]}
+                scale={[0.02, 0.02, 0.02]}
                 onClick={(event) => {
-                  console.log("Individual mesh clicked:", plane)
                   event.stopPropagation()
                   setSelectedAircraft(plane)
                 }}
-                onPointerOver={() => {
+                onPointerOver={(event) => {
+                  event.stopPropagation()
                   window.dispatchEvent(new CustomEvent('aircraft-hover', {
                     detail: plane
                   }))
                 }}
-                onPointerOut={() => {
+                onPointerOut={(event) => {
+                  event.stopPropagation()
                   window.dispatchEvent(new CustomEvent('aircraft-hover', {
                     detail: null
                   }))
                 }}
               >
                 <coneGeometry args={[1, 3, 6]} />
-                <primitive object={material} />
+                <meshStandardMaterial
+                  color={isSelected ? new THREE.Color(0x3b82f6) : new THREE.Color(0x10b981)}
+                  emissive={isSelected ? new THREE.Color(0x1d4ed8) : new THREE.Color(0x059669)}
+                  emissiveIntensity={isSelected ? 0.5 : 0.3}
+                  metalness={0.6}
+                  roughness={0.4}
+                  transparent
+                  opacity={0.9}
+                />
               </mesh>
 
               {/* Glow effect for selected aircraft */}
@@ -165,6 +169,8 @@ export function AircraftLayer() {
                   />
                 </mesh>
               )}
+
+
 
               {/* Trail effect for moving aircraft */}
               {plane.velocity && plane.velocity > 50 && (

@@ -11,8 +11,7 @@ export const useFlightStore = create<FlightStore>((set, get) => {
   const UPDATE_THROTTLE = 1000 // Only update UI every 1 second
 
   const parseAircraftData = (states: (string | number | boolean | null)[][]): AircraftState[] => {
-    console.log("Parsing aircraft data, states count:", states.length)
-    const parsed = states
+    return states
       .filter((state) => state[5] !== null && state[6] !== null) // Filter out aircraft without position
       .map((state) => ({
         icao24: state[0] as string,
@@ -33,15 +32,10 @@ export const useFlightStore = create<FlightStore>((set, get) => {
         spi: state[15] as boolean,
         position_source: state[16] as number,
       }))
-    console.log("Parsed aircraft count:", parsed.length)
-    return parsed
   }
 
   const fetchFlightData = async () => {
-    console.log("Fetching flight data from:", OPENSKY_API_URL)
-    
     // For testing, immediately use fallback data
-    console.log("Using fallback data for testing")
     const fallbackData = generateFallbackData()
     get().updateAircraft(fallbackData)
     
@@ -171,37 +165,28 @@ export const useFlightStore = create<FlightStore>((set, get) => {
     setSelectedAircraft: (aircraft) => set({ selectedAircraft: aircraft }),
 
     updateAircraft: (aircraftList) => {
-      console.log("Updating aircraft store with:", aircraftList.length, "aircraft")
-      console.log("First aircraft sample:", aircraftList[0])
       const aircraftMap: Record<string, AircraftState> = {}
       aircraftList.forEach((aircraft) => {
         aircraftMap[aircraft.icao24] = aircraft
       })
-      console.log("Aircraft map keys:", Object.keys(aircraftMap))
       set({ aircraft: aircraftMap })
-      console.log("Aircraft store updated")
     },
 
     setConnectionStatus: (connected) => set({ isConnected: connected }),
 
     startDataFetching: () => {
-      console.log("Starting data fetching...")
       if (intervalId) {
-        console.log("Data fetching already started")
         return
       }
 
-      console.log("Initial fetch starting...")
       // Initial fetch
       fetchFlightData()
 
-      console.log("Setting up interval for:", FETCH_INTERVAL, "ms")
       // Set up interval
       intervalId = setInterval(fetchFlightData, FETCH_INTERVAL)
     },
 
     stopDataFetching: () => {
-      console.log("Stopping data fetching...")
       if (intervalId) {
         clearInterval(intervalId)
         intervalId = null

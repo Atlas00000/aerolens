@@ -14,9 +14,7 @@ export function UI() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [isVisible, setIsVisible] = useState(false)
 
-  // Debug logging
-  console.log("UI - Selected aircraft:", selectedAircraft)
-  console.log("UI - Aircraft count:", Object.keys(aircraft).length)
+
 
   const aircraftCount = Object.keys(aircraft).length
 
@@ -112,7 +110,7 @@ export function UI() {
 
       {/* Aircraft Details Panel */}
       {selectedAircraft && (
-        <div className={`absolute top-6 right-6 z-10 transition-all duration-700 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`}>
+        <div className={`absolute top-6 right-6 z-50 transition-all duration-700 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`}>
           <Card className="glass-effect-dark border-white/10 shadow-2xl w-96 hover-lift">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -218,7 +216,7 @@ export function UI() {
       {/* Enhanced Tooltip */}
       {hoveredAircraft && (
         <div 
-          className="fixed z-50 glass-effect-dark border-white/10 shadow-2xl p-3 rounded-lg pointer-events-none animate-scale-in"
+          className="fixed z-[60] glass-effect-dark border-white/10 shadow-2xl p-3 rounded-lg pointer-events-none animate-scale-in"
           style={{ 
             left: mousePosition.x + 15, 
             top: mousePosition.y - 15 

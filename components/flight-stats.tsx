@@ -98,7 +98,7 @@ export function FlightStats() {
   )
 
   return (
-    <div className="absolute bottom-6 right-6 z-10">
+    <div className="absolute bottom-6 right-6 z-40">
       <Card className="glass-effect-dark border-white/10 shadow-2xl w-80">
         <CardHeader className="pb-3">
           <CardTitle className="text-white flex items-center gap-2">
