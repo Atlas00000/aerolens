@@ -25,10 +25,22 @@ export function FlightStats() {
     countries: 0
   })
   const [isVisible, setIsVisible] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 1500)
     return () => clearTimeout(timer)
+  }, [])
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
   useEffect(() => {
@@ -83,14 +95,14 @@ export function FlightStats() {
       className={`glass-effect-dark border-white/10 shadow-2xl hover-lift transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      <CardContent className="p-6">
+      <CardContent className="p-3 sm:p-6">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-2xl font-bold text-white mb-1">{value}</div>
-            <div className="text-sm text-slate-400">{title}</div>
+            <div className={`font-bold text-white mb-1 ${isMobile ? 'text-lg' : 'text-2xl'}`}>{value}</div>
+            <div className={`text-slate-400 ${isMobile ? 'text-xs' : 'text-sm'}`}>{title}</div>
           </div>
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>
-            <Icon className="w-6 h-6 text-white" />
+          <div className={`rounded-lg flex items-center justify-center ${color} ${isMobile ? 'w-8 h-8' : 'w-12 h-12'}`}>
+            <Icon className={`text-white ${isMobile ? 'w-4 h-4' : 'w-6 h-6'}`} />
           </div>
         </div>
       </CardContent>
@@ -98,58 +110,58 @@ export function FlightStats() {
   )
 
   return (
-    <div className="absolute bottom-6 right-6 z-40">
-      <Card className="glass-effect-dark border-white/10 shadow-2xl w-80">
+    <div className={`absolute z-40 ${isMobile ? 'bottom-4 right-4 left-4' : 'bottom-6 right-6'}`}>
+      <Card className={`glass-effect-dark border-white/10 shadow-2xl ${isMobile ? 'w-full' : 'w-80'}`}>
         <CardHeader className="pb-3">
           <CardTitle className="text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-400" />
-            Flight Statistics
+            <span className={isMobile ? 'text-sm' : 'text-base'}>Flight Statistics</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-2 sm:gap-3 ${isMobile ? 'grid-cols-2' : 'grid-cols-2'}`}>
             <StatCard
               title="Total Aircraft"
               value={stats.totalAircraft}
               icon={Plane}
-              color="bg-gradient-to-r from-blue-500 to-purple-600"
+              color="bg-gradient-primary"
               delay={0}
             />
             <StatCard
               title="In Flight"
               value={stats.inFlight}
               icon={Activity}
-              color="bg-gradient-to-r from-green-500 to-emerald-600"
+              color="bg-gradient-success"
               delay={100}
             />
             <StatCard
               title="On Ground"
               value={stats.onGround}
               icon={Plane}
-              color="bg-gradient-to-r from-yellow-500 to-orange-600"
+              color="bg-gradient-warning"
               delay={200}
             />
             <StatCard
               title="Countries"
               value={stats.countries}
               icon={Globe}
-              color="bg-gradient-to-r from-purple-500 to-pink-600"
+              color="bg-gradient-purple"
               delay={300}
             />
           </div>
 
-          {/* Average metrics */}
+          {/* Average metrics - Mobile Responsive */}
           <div className="pt-4 border-t border-white/10">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               <div>
                 <div className="text-xs text-slate-400 mb-1">Avg Altitude</div>
-                <div className="text-lg font-semibold text-white">
+                <div className={`font-semibold text-white ${isMobile ? 'text-sm' : 'text-lg'}`}>
                   {stats.avgAltitude.toLocaleString()} ft
                 </div>
               </div>
               <div>
                 <div className="text-xs text-slate-400 mb-1">Avg Speed</div>
-                <div className="text-lg font-semibold text-white">
+                <div className={`font-semibold text-white ${isMobile ? 'text-sm' : 'text-lg'}`}>
                   {stats.avgSpeed} kt
                 </div>
               </div>
@@ -165,7 +177,7 @@ export function FlightStats() {
               </div>
               <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full transition-all duration-1000"
+                  className="h-full bg-gradient-success rounded-full transition-all duration-1000"
                   style={{ width: `${(stats.inFlight / stats.totalAircraft) * 100}%` }}
                 />
               </div>
@@ -177,7 +189,7 @@ export function FlightStats() {
               </div>
               <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-yellow-500 to-orange-600 rounded-full transition-all duration-1000"
+                  className="h-full bg-gradient-warning rounded-full transition-all duration-1000"
                   style={{ width: `${(stats.onGround / stats.totalAircraft) * 100}%` }}
                 />
               </div>

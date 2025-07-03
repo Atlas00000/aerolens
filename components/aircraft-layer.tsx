@@ -84,14 +84,12 @@ export function AircraftLayer() {
     }))
   }
 
-
-
   if (aircraftArray.length === 0) {
     return (
       <group>
         {/* Show a helpful message when no aircraft are available */}
         <Html position={[0, 1.5, 0]} center>
-          <div className="bg-black/80 text-white p-4 rounded-lg text-center max-w-xs">
+          <div className="glass-effect-dark border-white/10 text-white p-4 rounded-lg text-center max-w-xs">
             <div className="text-lg mb-2">No Aircraft Found</div>
             <div className="text-sm text-slate-300">
               This could be due to:
@@ -109,8 +107,6 @@ export function AircraftLayer() {
       </group>
     )
   }
-
-
 
   // Use individual meshes for better interaction when aircraft count is low
   if (aircraftArray.length < 20) {
@@ -144,7 +140,7 @@ export function AircraftLayer() {
               >
                 <coneGeometry args={[1, 3, 6]} />
                 <meshStandardMaterial
-                  color={isSelected ? new THREE.Color(0xff6b6b) : new THREE.Color(0x10b981)}
+                  color={isSelected ? new THREE.Color(0xef4444) : new THREE.Color(0x10b981)}
                   emissive={isSelected ? new THREE.Color(0xff3333) : new THREE.Color(0x059669)}
                   emissiveIntensity={isSelected ? 0.5 : 0.3}
                   metalness={0.6}
@@ -153,12 +149,6 @@ export function AircraftLayer() {
                   opacity={0.9}
                 />
               </mesh>
-
-
-
-
-
-
             </group>
           )
         })}

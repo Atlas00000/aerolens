@@ -88,15 +88,15 @@ export function NotificationSystem() {
   const getTypeStyles = (type: Notification['type']) => {
     switch (type) {
       case 'success':
-        return 'border-green-500/30 bg-green-500/10'
+        return 'status-success'
       case 'error':
-        return 'border-red-500/30 bg-red-500/10'
+        return 'status-offline'
       case 'warning':
-        return 'border-yellow-500/30 bg-yellow-500/10'
+        return 'status-warning'
       case 'info':
-        return 'border-blue-500/30 bg-blue-500/10'
+        return 'status-info'
       default:
-        return 'border-blue-500/30 bg-blue-500/10'
+        return 'status-info'
     }
   }
 
@@ -105,7 +105,7 @@ export function NotificationSystem() {
       {notifications.map((notification, index) => (
         <div
           key={notification.id}
-          className={`glass-effect-dark border ${getTypeStyles(notification.type)} shadow-2xl rounded-lg p-4 w-80 animate-slide-in-right`}
+          className={`glass-effect-dark border shadow-2xl rounded-lg p-4 w-80 animate-slide-in-right ${getTypeStyles(notification.type)}`}
           style={{ 
             animationDelay: `${index * 0.1}s`,
             transform: `translateX(${index * 10}px)`
@@ -137,7 +137,7 @@ export function NotificationSystem() {
           {notification.duration && (
             <div className="mt-3 h-0.5 bg-white/10 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-300"
+                className="h-full bg-gradient-primary rounded-full transition-all duration-300"
                 style={{ 
                   width: '100%',
                   animation: 'shrink 3s linear forwards'

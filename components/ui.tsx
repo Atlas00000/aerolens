@@ -4,7 +4,8 @@ import { useFlightStore } from "@/lib/stores/flight-store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Plane, Wifi, WifiOff, X, Globe, Activity, MapPin, Clock, TrendingUp, Zap, Target, Users, Loader, AlertTriangle, RefreshCw, Pause, Play, RotateCcw } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Plane, Wifi, WifiOff, X, Globe, Activity, MapPin, Clock, TrendingUp, Zap, Target, Users, Loader, AlertTriangle, RefreshCw, Pause, Play, RotateCcw, Search } from "lucide-react"
 import { useState, useEffect } from "react"
 import { FlightStats } from "./flight-stats"
 
@@ -67,7 +68,7 @@ const ErrorMessage = ({ error, errorType, onRetry }: {
   }
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+    <div className="flex items-center gap-3 p-3 rounded-lg status-danger border border-danger">
       {getErrorIcon()}
       <div className="flex-1">
         <div className="text-sm font-medium text-red-400">
@@ -116,6 +117,10 @@ export function UI() {
   const [avgSpeed, setAvgSpeed] = useState(0)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [shortcutFeedback, setShortcutFeedback] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isMobile, setIsMobile] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
+  const [hideUI, setHideUI] = useState(false)
 
   // Calculate aircraft statistics
   useEffect(() => {
@@ -173,6 +178,15 @@ export function UI() {
         case 'escape':
           setShowShortcuts(false)
           setSelectedAircraft(null)
+          setSearchQuery("")
+          setShowSearch(false)
+          break
+        case 'f':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault()
+            setShowSearch(true)
+            setShortcutFeedback('Search activated')
+          }
           break
       }
     }
@@ -214,240 +228,425 @@ export function UI() {
     }
   }, [])
 
-  if (!isVisible) return null
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Auto-hide UI when interacting with globe
+  useEffect(() => {
+    if (!isMobile) return
+    const handleUserInteraction = () => {
+      setHideUI(true)
+      setTimeout(() => setHideUI(false), 2500)
+    }
+    window.addEventListener('user-interaction-start', handleUserInteraction)
+    return () => window.removeEventListener('user-interaction-start', handleUserInteraction)
+  }, [isMobile])
+
+  // Search functionality
+  const filteredAircraft = Object.values(aircraft).filter(plane => {
+    if (!searchQuery) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      (plane.callsign && plane.callsign.toLowerCase().includes(query)) ||
+      plane.icao24.toLowerCase().includes(query) ||
+      plane.origin_country.toLowerCase().includes(query)
+    )
+  })
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    if (query && filteredAircraft.length === 1) {
+      setSelectedAircraft(filteredAircraft[0])
+    }
+  }
+
+  if (!isVisible || (isMobile && hideUI)) return (
+    isMobile && (
+      <button
+        className="fixed z-50 bottom-4 right-4 bg-black/40 text-white rounded-full p-3 shadow-lg"
+        onClick={() => setHideUI(false)}
+        style={{ opacity: 0.7 }}
+        aria-label="Show UI"
+      >
+        <Plane className="w-6 h-6" />
+      </button>
+    )
+  )
 
   return (
     <>
-      {/* Enhanced Header */}
-      <div className={`absolute top-6 left-6 z-10 transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
-        <Card className="glass-effect-dark border-white/10 shadow-2xl hover-lift">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-white flex items-center gap-3">
-              <div className="relative">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Plane className="w-4 h-4 text-white" />
-                </div>
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-lg blur-sm"></div>
-              </div>
-              <div>
-                <div className="text-gradient font-bold text-xl">AeroLens</div>
-                <div className="text-xs text-slate-400 font-normal">Flight Tracker</div>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Error Message */}
-            {error && (
-              <ErrorMessage 
-                error={error} 
-                errorType={errorType} 
-                onRetry={handleRetry}
-              />
-            )}
-
-            {/* Connection Status */}
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400 animate-pulse-glow' : 'bg-red-400'}`}></div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-white">
-                  {isLoading ? "Loading..." : isPaused ? "Paused" : isConnected ? "Connected" : "Disconnected"}
-                </div>
-                <div className="text-xs text-slate-400">
-                  {isLoading ? "Fetching aircraft data..." : isPaused ? "Data paused - Press Space to resume" : isConnected ? "Live data streaming" : "Reconnecting..."}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {isLoading ? (
-                  <LoadingSpinner size="sm" />
-                ) : isPaused ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={togglePause}
-                    className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/20"
-                    title="Resume (Space)"
-                  >
-                    <Play className="w-4 h-4" />
-                  </Button>
-                ) : isConnected ? (
+      {/* [1] Mobile Top Bar Header */}
+      {isMobile ? (
+        <div className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-3 py-2 glass-effect-dark border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Plane className="w-5 h-5 text-white" />
+            <span className="text-gradient font-bold text-base">AeroLens</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSearch(!showSearch)}
+              className="text-slate-400 hover:text-white hover:bg-white/10"
+              title="Search flights"
+            >
+              <Search className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setHideUI(true)}
+              className="text-slate-400 hover:text-white hover:bg-white/10"
+              title="Hide UI"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Enhanced Header - Mobile Responsive */}
+          <div className={`absolute top-4 left-4 right-4 md:top-6 md:left-6 md:right-auto z-10 transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+            <Card className="glass-effect-dark border-white/10 shadow-2xl hover-lift">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+                        <Plane className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="absolute -inset-1 bg-gradient-primary/20 rounded-lg blur-sm"></div>
+                    </div>
+                    <div className="hidden sm:block">
+                      <div className="text-gradient font-bold text-xl">AeroLens</div>
+                      <div className="text-xs text-slate-400 font-normal">Flight Tracker</div>
+                    </div>
+                    <div className="sm:hidden">
+                      <div className="text-gradient font-bold text-lg">AeroLens</div>
+                      <div className="text-xs text-slate-400 font-normal">Flight Tracker</div>
+                    </div>
+                  </CardTitle>
+                  
+                  {/* Search Button for Mobile */}
                   <div className="flex items-center gap-2">
-                    <Wifi className="w-4 h-4 text-green-400" />
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={togglePause}
-                      className="text-green-400 hover:text-green-300 hover:bg-green-500/20"
-                      title="Pause (Space)"
+                      onClick={() => setShowSearch(!showSearch)}
+                      className="text-slate-400 hover:text-white hover:bg-white/10"
+                      title="Search flights"
                     >
-                      <Pause className="w-4 h-4" />
+                      <Search className="w-4 h-4" />
                     </Button>
                   </div>
-                ) : (
-                  <WifiOff className="w-4 h-4 text-red-400" />
-                )}
-              </div>
-            </div>
-
-            {/* Enhanced Aircraft Count Display */}
-            <div className="space-y-3">
-              {/* Main Aircraft Count */}
-              <div className="text-center p-4 rounded-lg bg-gradient-to-br from-blue-500/15 to-purple-500/15 border border-blue-500/30 relative overflow-hidden hover-stat animate-stat-pulse">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 animate-pulse"></div>
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 animate-data-flow"></div>
-                <div className="relative z-10">
-                  {isLoading ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <LoadingSpinner size="lg" />
-                      <div className="text-sm text-slate-300 font-medium">Loading Aircraft</div>
-                      <div className="text-xs text-slate-400">Fetching data...</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-4xl font-bold text-gradient-blue animate-count-up">
-                        {aircraftCount}
-                      </div>
-                      <div className="text-sm text-slate-300 font-medium">Total Aircraft</div>
-                      <div className="flex items-center justify-center gap-2 mt-2">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                        <div className="text-xs text-slate-400">Live Tracking</div>
-                      </div>
-                    </>
-                  )}
                 </div>
-              </div>
-
-              {/* Detailed Stats Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* In Flight Count */}
-                <div className="text-center p-3 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 hover-stat animate-metric-glow">
-                  {isLoading ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <LoadingSpinner size="sm" />
-                      <div className="text-xs text-slate-400">Loading...</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <Zap className="w-3 h-3 text-green-400 stat-icon" />
-                        <div className="text-lg font-bold text-green-400 animate-count-up">{inFlightCount}</div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Search Input */}
+                {showSearch && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search by flight number, ICAO24, or country..."
+                      value={searchQuery}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      className="pl-10 glass-effect border-white/10 text-white placeholder:text-slate-400 focus:border-primary"
+                    />
+                    {searchQuery && (
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery("")
+                            setSelectedAircraft(null)
+                          }}
+                          className="text-slate-400 hover:text-white h-6 w-6 p-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
                       </div>
-                      <div className="text-xs text-slate-400">In Flight</div>
-                    </>
-                  )}
-                </div>
-
-                {/* On Ground Count */}
-                <div className="text-center p-3 rounded-lg bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 hover-stat animate-metric-glow">
-                  {isLoading ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <LoadingSpinner size="sm" />
-                      <div className="text-xs text-slate-400">Loading...</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <Target className="w-3 h-3 text-orange-400 stat-icon" />
-                        <div className="text-lg font-bold text-orange-400 animate-count-up">{aircraftCount - inFlightCount}</div>
-                      </div>
-                      <div className="text-xs text-slate-400">On Ground</div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Average Metrics */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover-stat">
-                  {isLoading ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <LoadingSpinner size="sm" />
-                      <div className="text-xs text-slate-400">Loading...</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-sm font-bold text-purple-400 animate-count-up">
-                        {avgAltitude > 0 ? `${Math.round(avgAltitude / 1000)}k` : 'N/A'}
-                      </div>
-                      <div className="text-xs text-slate-400">Avg Altitude</div>
-                    </>
-                  )}
-                </div>
-                <div className="text-center p-3 rounded-lg bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 hover-stat">
-                  {isLoading ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <LoadingSpinner size="sm" />
-                      <div className="text-xs text-slate-400">Loading...</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-sm font-bold text-cyan-400 animate-count-up">
-                        {avgSpeed > 0 ? `${Math.round(avgSpeed)}` : 'N/A'}
-                      </div>
-                      <div className="text-xs text-slate-400">Avg Speed (kt)</div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Coverage Indicator */}
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                {isLoading ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-blue-500 rounded-full animate-pulse"></div>
-                )}
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-white">
-                    {isLoading ? "Calculating..." : `${Math.round((aircraftCount / 1000) * 100)}% Coverage`}
+                    )}
                   </div>
-                  <div className="text-xs text-slate-400">
-                    {isLoading ? "Processing aircraft data..." : aircraftCount > 0 ? `${aircraftCount} aircraft detected` : 'No aircraft detected'}
+                )}
+
+                {/* Search Results */}
+                {searchQuery && (
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {filteredAircraft.length > 0 ? (
+                      filteredAircraft.slice(0, 5).map((plane) => (
+                        <div
+                          key={plane.icao24}
+                          className="flex items-center gap-2 p-2 rounded-lg glass-effect hover:bg-white/10 cursor-pointer transition-colors"
+                          onClick={() => setSelectedAircraft(plane)}
+                        >
+                          <Plane className="w-3 h-3 text-blue-400" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-white truncate">
+                              {plane.callsign || "Unknown"}
+                            </div>
+                            <div className="text-xs text-slate-400 truncate">
+                              {plane.icao24} • {plane.origin_country}
+                            </div>
+                          </div>
+                          <Badge 
+                            variant="secondary"
+                            className={`text-xs ${plane.on_ground ? 'status-success' : 'status-info'}`}
+                          >
+                            {plane.on_ground ? "Ground" : "Air"}
+                          </Badge>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-2 text-sm text-slate-400">
+                        No flights found
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                  <ErrorMessage 
+                    error={error} 
+                    errorType={errorType} 
+                    onRetry={handleRetry}
+                  />
+                )}
+
+                {/* Connection Status */}
+                <div className="flex items-center gap-3 p-3 rounded-lg glass-effect border border-white/10">
+                  <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400 animate-pulse-glow' : 'bg-red-400'}`}></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">
+                      {isLoading ? "Loading..." : isPaused ? "Paused" : isConnected ? "Connected" : "Disconnected"}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {isLoading ? "Fetching aircraft data..." : isPaused ? "Data paused - Press Space to resume" : isConnected ? "Live data streaming" : "Reconnecting..."}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isLoading ? (
+                      <LoadingSpinner size="sm" />
+                    ) : isPaused ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={togglePause}
+                        className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/20"
+                        title="Resume (Space)"
+                      >
+                        <Play className="w-4 h-4" />
+                      </Button>
+                    ) : isConnected ? (
+                      <div className="flex items-center gap-2">
+                        <Wifi className="w-4 h-4 text-green-400" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={togglePause}
+                          className="text-green-400 hover:text-green-300 hover:bg-green-500/20"
+                          title="Pause (Space)"
+                        >
+                          <Pause className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <WifiOff className="w-4 h-4 text-red-400" />
+                    )}
                   </div>
                 </div>
-                {isLoading ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  <Users className="w-4 h-4 text-slate-400" />
-                )}
-              </div>
-            </div>
 
-            {/* Last Update */}
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              {isLoading ? (
-                <>
-                  <LoadingSpinner size="sm" />
-                  <span>Updating data...</span>
-                </>
-              ) : lastUpdate ? (
-                <>
-                  <Clock className="w-3 h-3" />
-                  <span>Updated {new Date(lastUpdate).toLocaleTimeString()}</span>
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                </>
-              ) : (
-                <>
-                  <Clock className="w-3 h-3" />
-                  <span>No data available</span>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                {/* Enhanced Aircraft Count Display - Mobile Responsive */}
+                <div className="space-y-3">
+                  {/* Main Aircraft Count */}
+                  <div className="text-center p-3 sm:p-4 rounded-lg glass-effect-accent border border-primary relative overflow-hidden hover-stat animate-stat-pulse">
+                    <div className="absolute inset-0 bg-gradient-primary/5 animate-pulse"></div>
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-primary animate-data-flow"></div>
+                    <div className="relative z-10">
+                      {isLoading ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <LoadingSpinner size={isMobile ? "md" : "lg"} />
+                          <div className="text-sm text-slate-300 font-medium">Loading Aircraft</div>
+                          <div className="text-xs text-slate-400">Fetching data...</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={`font-bold text-gradient-blue animate-count-up ${isMobile ? 'text-3xl' : 'text-4xl'}`}>
+                            {aircraftCount}
+                          </div>
+                          <div className="text-sm text-slate-300 font-medium">Total Aircraft</div>
+                          <div className="flex items-center justify-center gap-2 mt-2">
+                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                            <div className="text-xs text-slate-400">Live Tracking</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
 
-      {/* Aircraft Details Panel */}
-      {selectedAircraft && (
-        <div className={`absolute top-6 right-6 z-50 transition-all duration-700 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`}>
-          <Card className="glass-effect-dark border-white/10 shadow-2xl w-96 hover-lift">
+                  {/* Detailed Stats Grid - Mobile Responsive */}
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    {/* In Flight Count */}
+                    <div className="text-center p-2 sm:p-3 rounded-lg glass-effect border border-success hover-stat animate-metric-glow">
+                      {isLoading ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <LoadingSpinner size="sm" />
+                          <div className="text-xs text-slate-400">Loading...</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-center gap-1 sm:gap-2 mb-1">
+                            <Zap className="w-3 h-3 text-green-400 stat-icon" />
+                            <div className="text-sm sm:text-lg font-bold text-gradient-green animate-count-up">{inFlightCount}</div>
+                          </div>
+                          <div className="text-xs text-slate-400">In Flight</div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* On Ground Count */}
+                    <div className="text-center p-2 sm:p-3 rounded-lg glass-effect border border-warning hover-stat animate-metric-glow">
+                      {isLoading ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <LoadingSpinner size="sm" />
+                          <div className="text-xs text-slate-400">Loading...</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-center gap-1 sm:gap-2 mb-1">
+                            <Target className="w-3 h-3 text-orange-400 stat-icon" />
+                            <div className="text-sm sm:text-lg font-bold text-gradient-orange animate-count-up">{aircraftCount - inFlightCount}</div>
+                          </div>
+                          <div className="text-xs text-slate-400">On Ground</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Average Metrics - Mobile Responsive */}
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div className="text-center p-2 sm:p-3 rounded-lg glass-effect border border-purple hover-stat">
+                      {isLoading ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <LoadingSpinner size="sm" />
+                          <div className="text-xs text-slate-400">Loading...</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-xs sm:text-sm font-bold text-gradient-purple animate-count-up">
+                            {avgAltitude > 0 ? `${Math.round(avgAltitude / 1000)}k` : 'N/A'}
+                          </div>
+                          <div className="text-xs text-slate-400">Avg Altitude</div>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-center p-2 sm:p-3 rounded-lg glass-effect border border-info hover-stat">
+                      {isLoading ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <LoadingSpinner size="sm" />
+                          <div className="text-xs text-slate-400">Loading...</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-xs sm:text-sm font-bold text-gradient-cyan animate-count-up">
+                            {avgSpeed > 0 ? `${Math.round(avgSpeed)}` : 'N/A'}
+                          </div>
+                          <div className="text-xs text-slate-400">Avg Speed (kt)</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Coverage Indicator */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg glass-effect border border-white/10">
+                    {isLoading ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <div className="w-3 h-3 bg-gradient-success rounded-full animate-pulse"></div>
+                    )}
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-white">
+                        {isLoading ? "Calculating..." : `${Math.round((aircraftCount / 1000) * 100)}% Coverage`}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {isLoading ? "Processing aircraft data..." : aircraftCount > 0 ? `${aircraftCount} aircraft detected` : 'No aircraft detected'}
+                      </div>
+                    </div>
+                    {isLoading ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <Users className="w-4 h-4 text-slate-400" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Last Update */}
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  {isLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      <span>Updating data...</span>
+                    </>
+                  ) : lastUpdate ? (
+                    <>
+                      <Clock className="w-3 h-3" />
+                      <span>Updated {new Date(lastUpdate).toLocaleTimeString()}</span>
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="w-3 h-3" />
+                      <span>No data available</span>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* [4] Mobile Bottom Bar Stats */}
+      {isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 z-20 px-2 pb-2 pt-1 glass-effect-dark border-t border-white/10 flex flex-col gap-1">
+          <div className="flex justify-between items-center text-xs text-white">
+            <div>Total: <span className="font-bold text-gradient-blue">{aircraftCount}</span></div>
+            <div>In Flight: <span className="font-bold text-gradient-green">{inFlightCount}</span></div>
+            <div>On Ground: <span className="font-bold text-gradient-orange">{aircraftCount - inFlightCount}</span></div>
+          </div>
+          <div className="flex justify-between items-center text-xs text-slate-300">
+            <div>Avg Alt: <span className="font-bold text-gradient-purple">{avgAltitude > 0 ? `${Math.round(avgAltitude / 1000)}k` : 'N/A'} ft</span></div>
+            <div>Avg Spd: <span className="font-bold text-gradient-cyan">{avgSpeed > 0 ? `${Math.round(avgSpeed)}` : 'N/A'} kt</span></div>
+          </div>
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <div className={isConnected ? 'status-online' : 'status-offline'}>{isConnected ? 'Live' : 'Offline'}</div>
+            <div>{lastUpdate ? `Updated ${new Date(lastUpdate).toLocaleTimeString()}` : 'No data'}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Aircraft Details as Bottom Sheet on Mobile */}
+      {selectedAircraft && isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-in-up">
+          <Card className="glass-effect-dark border-white/10 shadow-2xl w-full rounded-t-2xl">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    <Plane className="w-5 h-5 text-white" />
+                  <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+                    <Plane className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-white text-lg">
+                    <CardTitle className="text-white text-base">
                       {selectedAircraft.callsign || "Unknown Flight"}
                     </CardTitle>
                     <div className="text-xs text-slate-400 font-mono">
@@ -457,7 +656,7 @@ export function UI() {
                 </div>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={() => setSelectedAircraft(null)}
                   className="text-slate-400 hover:text-white hover:bg-white/10"
                 >
@@ -465,73 +664,35 @@ export function UI() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Flight Info Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <MapPin className="w-3 h-3" />
-                    <span>Position</span>
-                  </div>
-                  <div className="text-sm text-white font-mono">
-                    {selectedAircraft.latitude.toFixed(4)}, {selectedAircraft.longitude.toFixed(4)}
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <Globe className="w-3 h-3" />
-                    <span>Country</span>
-                  </div>
-                  <div className="text-sm text-white">
-                    {selectedAircraft.origin_country}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>Altitude</span>
-                  </div>
-                  <div className="text-sm text-white">
-                    {selectedAircraft.baro_altitude ? `${selectedAircraft.baro_altitude.toLocaleString()} ft` : "N/A"}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <Activity className="w-3 h-3" />
-                    <span>Speed</span>
-                  </div>
-                  <div className="text-sm text-white">
-                    {selectedAircraft.velocity ? `${selectedAircraft.velocity} kt` : "N/A"}
-                  </div>
-                </div>
+            <CardContent className="space-y-2 text-xs text-white">
+              <div className="flex justify-between">
+                <span>Position</span>
+                <span className="font-mono">{selectedAircraft.latitude.toFixed(2)}, {selectedAircraft.longitude.toFixed(2)}</span>
               </div>
-
-              {/* Additional Details */}
-              <div className="pt-4 border-t border-white/10">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                    <div className="text-slate-400 text-xs">Heading</div>
-                    <div className="text-white">
-                      {selectedAircraft.true_track ? `${selectedAircraft.true_track}°` : "N/A"}
-                    </div>
-                </div>
-                <div>
-                    <div className="text-slate-400 text-xs">Vertical Rate</div>
-                    <div className="text-white">
-                      {selectedAircraft.vertical_rate ? `${selectedAircraft.vertical_rate} ft/min` : "N/A"}
-                    </div>
-                  </div>
-                </div>
+              <div className="flex justify-between">
+                <span>Country</span>
+                <span>{selectedAircraft.origin_country}</span>
               </div>
-
-              {/* Status Badge */}
-              <div className="flex justify-center">
+              <div className="flex justify-between">
+                <span>Altitude</span>
+                <span>{selectedAircraft.baro_altitude ? `${selectedAircraft.baro_altitude.toLocaleString()} ft` : "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Speed</span>
+                <span>{selectedAircraft.velocity ? `${selectedAircraft.velocity} kt` : "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Heading</span>
+                <span>{selectedAircraft.true_track ? `${selectedAircraft.true_track}°` : "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Vertical Rate</span>
+                <span>{selectedAircraft.vertical_rate ? `${selectedAircraft.vertical_rate} ft/min` : "N/A"}</span>
+              </div>
+              <div className="flex justify-center pt-2">
                 <Badge 
                   variant={selectedAircraft.on_ground ? "secondary" : "default"}
-                  className={`${selectedAircraft.on_ground ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-purple-500/20 text-purple-400 border-purple-500/30'}`}
+                  className={`${selectedAircraft.on_ground ? 'status-success' : 'status-info'}`}
                 >
                   {selectedAircraft.on_ground ? "On Ground" : "In Flight"}
                 </Badge>
@@ -552,9 +713,9 @@ export function UI() {
           }}
         >
           {/* Tooltip Header */}
-          <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 p-3 border-b border-white/10">
+          <div className="glass-effect-accent border-b border-primary p-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
                 <Plane className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1">
@@ -573,14 +734,14 @@ export function UI() {
           <div className="p-3 space-y-3">
             {/* Primary Stats */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 tooltip-stat">
-                <div className="text-lg font-bold text-blue-400">
+              <div className="text-center p-2 rounded-lg glass-effect border border-purple tooltip-stat">
+                <div className="text-lg font-bold text-gradient-purple">
                   {hoveredAircraft.baro_altitude ? `${Math.round(hoveredAircraft.baro_altitude / 1000)}k` : 'N/A'}
                 </div>
                 <div className="text-xs text-slate-400">Altitude (ft)</div>
               </div>
-              <div className="text-center p-2 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 tooltip-stat">
-                <div className="text-lg font-bold text-green-400">
+              <div className="text-center p-2 rounded-lg glass-effect border border-success tooltip-stat">
+                <div className="text-lg font-bold text-gradient-green">
                   {hoveredAircraft.velocity ? Math.round(hoveredAircraft.velocity) : 'N/A'}
                 </div>
                 <div className="text-xs text-slate-400">Speed (kt)</div>
@@ -613,7 +774,7 @@ export function UI() {
             <div className="flex justify-center pt-2 border-t border-white/10">
               <Badge 
                 variant="secondary"
-                className={`text-xs ${hoveredAircraft.on_ground ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-purple-500/20 text-purple-400 border-purple-500/30'}`}
+                className={`text-xs ${hoveredAircraft.on_ground ? 'status-success' : 'status-info'}`}
               >
                 {hoveredAircraft.on_ground ? "On Ground" : "In Flight"}
               </Badge>
@@ -622,23 +783,23 @@ export function UI() {
         </div>
       )}
 
-      {/* Enhanced Controls Help */}
-      <div className={`absolute bottom-6 left-6 z-10 transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
-        <Card className="glass-effect-dark border-white/10 shadow-2xl">
-          <CardContent className="p-4">
-            <div className="text-sm text-white font-medium mb-3">Controls</div>
-            <div className="space-y-2 text-xs text-slate-300">
+      {/* Enhanced Controls Help - Mobile Responsive */}
+      <div className={`absolute z-10 transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'} ${isMobile ? 'bottom-4 left-4 right-4' : 'bottom-6 left-6'}`}>
+        <Card className={`glass-effect-dark border-white/10 shadow-2xl ${isMobile ? 'w-full' : ''}`}>
+          <CardContent className="p-3 sm:p-4">
+            <div className={`text-white font-medium mb-2 sm:mb-3 ${isMobile ? 'text-xs' : 'text-sm'}`}>Controls</div>
+            <div className="space-y-1 sm:space-y-2 text-xs text-slate-300">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-white/10 rounded flex items-center justify-center text-xs">🖱️</div>
-                <span>Drag to rotate • Scroll to zoom</span>
+                <div className="w-5 h-5 sm:w-6 sm:h-6 glass-effect rounded flex items-center justify-center text-xs">🖱️</div>
+                <span className={isMobile ? 'text-xs' : 'text-xs'}>Drag to rotate • Scroll to zoom</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-white/10 rounded flex items-center justify-center text-xs">✈️</div>
-                <span>Click aircraft for details</span>
+                <div className="w-5 h-5 sm:w-6 sm:h-6 glass-effect rounded flex items-center justify-center text-xs">✈️</div>
+                <span className={isMobile ? 'text-xs' : 'text-xs'}>Click aircraft for details</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-white/10 rounded flex items-center justify-center text-xs">🌍</div>
-                <span>Drag to rotate the globe</span>
+                <div className="w-5 h-5 sm:w-6 sm:h-6 glass-effect rounded flex items-center justify-center text-xs">🌍</div>
+                <span className={isMobile ? 'text-xs' : 'text-xs'}>Drag to rotate the globe</span>
               </div>
             </div>
           </CardContent>
@@ -648,8 +809,8 @@ export function UI() {
       {/* Flight Statistics */}
       <FlightStats />
 
-      {/* Keyboard Shortcuts Indicator */}
-      <div className="fixed bottom-4 left-4 z-50">
+      {/* Keyboard Shortcuts Indicator - Mobile Responsive */}
+      <div className={`fixed z-50 ${isMobile ? 'bottom-4 right-4' : 'bottom-4 left-4'}`}>
         <Button
           variant="ghost"
           size="sm"
@@ -658,7 +819,7 @@ export function UI() {
           title="Show keyboard shortcuts (? or H)"
         >
           <span className="mr-1">⌨️</span>
-          Shortcuts
+          {!isMobile && "Shortcuts"}
         </Button>
       </div>
 
@@ -692,9 +853,9 @@ export function UI() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                <div className="flex items-center justify-between p-2 rounded-lg glass-effect">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-warning rounded-lg flex items-center justify-center">
                       <Pause className="w-4 h-4 text-white" />
                     </div>
                     <div>
@@ -702,14 +863,14 @@ export function UI() {
                       <div className="text-xs text-slate-400">Toggle data fetching</div>
                     </div>
                   </div>
-                  <div className="px-2 py-1 bg-white/10 rounded text-xs font-mono text-white">
+                  <div className="px-2 py-1 glass-effect rounded text-xs font-mono text-white">
                     Space
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                <div className="flex items-center justify-between p-2 rounded-lg glass-effect">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-success rounded-lg flex items-center justify-center">
                       <RotateCcw className="w-4 h-4 text-white" />
                     </div>
                     <div>
@@ -717,14 +878,29 @@ export function UI() {
                       <div className="text-xs text-slate-400">Reset camera position</div>
                     </div>
                   </div>
-                  <div className="px-2 py-1 bg-white/10 rounded text-xs font-mono text-white">
+                  <div className="px-2 py-1 glass-effect rounded text-xs font-mono text-white">
                     R
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                <div className="flex items-center justify-between p-2 rounded-lg glass-effect">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-info rounded-lg flex items-center justify-center">
+                      <Search className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white">Search Flights</div>
+                      <div className="text-xs text-slate-400">Find aircraft by callsign</div>
+                    </div>
+                  </div>
+                  <div className="px-2 py-1 glass-effect rounded text-xs font-mono text-white">
+                    Ctrl+F
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-lg glass-effect">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-danger rounded-lg flex items-center justify-center">
                       <X className="w-4 h-4 text-white" />
                     </div>
                     <div>
@@ -732,14 +908,14 @@ export function UI() {
                       <div className="text-xs text-slate-400">Close aircraft details</div>
                     </div>
                   </div>
-                  <div className="px-2 py-1 bg-white/10 rounded text-xs font-mono text-white">
+                  <div className="px-2 py-1 glass-effect rounded text-xs font-mono text-white">
                     Esc
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                <div className="flex items-center justify-between p-2 rounded-lg glass-effect">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-purple rounded-lg flex items-center justify-center">
                       <span className="text-white text-sm font-bold">?</span>
                     </div>
                     <div>
@@ -747,7 +923,7 @@ export function UI() {
                       <div className="text-xs text-slate-400">Toggle this panel</div>
                     </div>
                   </div>
-                  <div className="px-2 py-1 bg-white/10 rounded text-xs font-mono text-white">
+                  <div className="px-2 py-1 glass-effect rounded text-xs font-mono text-white">
                     ? or H
                   </div>
                 </div>
