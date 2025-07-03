@@ -14,11 +14,11 @@ interface Notification {
 
 export function NotificationSystem() {
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const { isConnected, aircraft } = useFlightStore()
+  const { isConnected, aircraft, error, errorType } = useFlightStore()
 
   // Auto-generate notifications based on app state
   useEffect(() => {
-    if (isConnected && Object.keys(aircraft).length > 0) {
+    if (isConnected && Object.keys(aircraft).length > 0 && !error) {
       addNotification({
         type: 'success',
         title: 'Connected',
@@ -26,7 +26,32 @@ export function NotificationSystem() {
         duration: 3000
       })
     }
-  }, [isConnected, aircraft])
+  }, [isConnected, aircraft, error])
+
+  // Show error notifications
+  useEffect(() => {
+    if (error) {
+      const getErrorTitle = () => {
+        switch (errorType) {
+          case 'network':
+            return 'Connection Error'
+          case 'api':
+            return 'API Error'
+          case 'data':
+            return 'Data Error'
+          default:
+            return 'Error'
+        }
+      }
+
+      addNotification({
+        type: errorType === 'network' ? 'error' : 'warning',
+        title: getErrorTitle(),
+        message: error,
+        duration: 5000
+      })
+    }
+  }, [error, errorType])
 
   const addNotification = (notification: Omit<Notification, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9)

@@ -35,6 +35,9 @@ export const useFlightStore = create<FlightStore>((set, get) => {
   }
 
   const fetchFlightData = async () => {
+    // Set loading state
+    set((state) => ({ ...state, isLoading: true, error: null, errorType: null }))
+    
     // For testing, immediately use fallback data
     const fallbackData = generateFallbackData()
     get().updateAircraft(fallbackData)
@@ -42,13 +45,11 @@ export const useFlightStore = create<FlightStore>((set, get) => {
     set((state) => ({
       ...state,
       isConnected: true,
+      isLoading: false,
       lastUpdate: Date.now(),
     }))
     
-    return
-    
-    // Original API call code (commented out for testing)
-    /*
+    // Try to fetch real data first
     try {
       const response = await fetch(OPENSKY_API_URL, {
         method: 'GET',
@@ -57,17 +58,15 @@ export const useFlightStore = create<FlightStore>((set, get) => {
         },
       })
 
-      console.log("Response status:", response.status)
-      console.log("Response ok:", response.ok)
-
       // Handle rate limiting
       if (response.status === 429) {
-        console.warn("OpenSky rate-limit hit (429); pausing for 30 s")
+        get().setError("Rate limit exceeded. Please wait 30 seconds before retrying.", 'api')
         if (intervalId) {
           clearInterval(intervalId)
           intervalId = null
         }
         setTimeout(() => {
+          get().clearError()
           fetchFlightData()
           intervalId = setInterval(fetchFlightData, FETCH_INTERVAL)
         }, 30_000)
@@ -75,20 +74,20 @@ export const useFlightStore = create<FlightStore>((set, get) => {
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
       const data: OpenSkyResponse = await response.json()
-      console.log("Raw API response:", data)
       
       if (!data.states || data.states.length === 0) {
-        console.warn("No aircraft data received from API")
-        // Use fallback data for testing
+        get().setError("No aircraft data available in this area. Try a different region or time.", 'data')
+        // Use fallback data
         const fallbackData = generateFallbackData()
         get().updateAircraft(fallbackData)
         set((state) => ({
           ...state,
           isConnected: true,
+          isLoading: false,
           lastUpdate: Date.now(),
         }))
         return
@@ -102,27 +101,48 @@ export const useFlightStore = create<FlightStore>((set, get) => {
         set((state) => ({
           ...state,
           isConnected: true,
+          isLoading: false,
           lastUpdate: now,
         }))
         lastUpdateTime = now
       }
 
       get().updateAircraft(aircraftData)
+      get().clearError() // Clear any previous errors
+      
     } catch (error) {
       console.error("Failed to fetch flight data:", error)
       
-      // Use fallback data on error for testing
-      console.log("Using fallback data due to API error")
+      // Determine error type and set appropriate message
+      let errorMessage = "Failed to connect to flight data service."
+      let errorType: 'network' | 'api' | 'data' | 'unknown' = 'unknown'
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = "Network connection failed. Please check your internet connection."
+        errorType = 'network'
+      } else if (error instanceof Error) {
+        if (error.message.includes('HTTP')) {
+          errorMessage = `Server error: ${error.message}`
+          errorType = 'api'
+        } else {
+          errorMessage = `Connection error: ${error.message}`
+          errorType = 'network'
+        }
+      }
+      
+      get().setError(errorMessage, errorType)
+      
+      // Use fallback data on error
       const fallbackData = generateFallbackData()
       get().updateAircraft(fallbackData)
       
       set((state) => ({
         ...state,
         isConnected: true, // Show as connected even with fallback data
+        isLoading: false,
         lastUpdate: Date.now(),
       }))
     }
-    */
   }
 
   // Generate fallback data for testing when API is unavailable
@@ -160,6 +180,9 @@ export const useFlightStore = create<FlightStore>((set, get) => {
     aircraft: {},
     selectedAircraft: null,
     isConnected: false,
+    isLoading: false,
+    error: null,
+    errorType: null,
     lastUpdate: null,
 
     setSelectedAircraft: (aircraft) => set({ selectedAircraft: aircraft }),
@@ -173,11 +196,20 @@ export const useFlightStore = create<FlightStore>((set, get) => {
     },
 
     setConnectionStatus: (connected) => set({ isConnected: connected }),
+    
+    setLoading: (loading) => set({ isLoading: loading }),
+
+    setError: (error, type = 'unknown') => set({ error, errorType: type }),
+    
+    clearError: () => set({ error: null, errorType: null }),
 
     startDataFetching: () => {
       if (intervalId) {
         return
       }
+
+      // Clear any previous errors
+      get().clearError()
 
       // Initial fetch
       fetchFlightData()

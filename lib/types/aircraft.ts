@@ -27,10 +27,16 @@ export interface FlightStore {
   aircraft: Record<string, AircraftState>
   selectedAircraft: AircraftState | null
   isConnected: boolean
+  isLoading: boolean
+  error: string | null
+  errorType: 'network' | 'api' | 'data' | 'unknown' | null
   lastUpdate: number | null
   setSelectedAircraft: (aircraft: AircraftState | null) => void
   updateAircraft: (aircraft: AircraftState[]) => void
   setConnectionStatus: (connected: boolean) => void
+  setLoading: (loading: boolean) => void
+  setError: (error: string | null, type?: 'network' | 'api' | 'data' | 'unknown') => void
+  clearError: () => void
   startDataFetching: () => void
   stopDataFetching: () => void
 }

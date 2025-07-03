@@ -4,19 +4,142 @@ import { useFlightStore } from "@/lib/stores/flight-store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Plane, Wifi, WifiOff, X, Globe, Activity, MapPin, Clock, TrendingUp } from "lucide-react"
+import { Plane, Wifi, WifiOff, X, Globe, Activity, MapPin, Clock, TrendingUp, Zap, Target, Users, Loader, AlertTriangle, RefreshCw } from "lucide-react"
 import { useState, useEffect } from "react"
 import { FlightStats } from "./flight-stats"
 
+// Simple Loading Spinner Component
+const LoadingSpinner = ({ size = "sm", className = "" }: { size?: "sm" | "md" | "lg", className?: string }) => {
+  const sizeClasses = {
+    sm: "w-4 h-4",
+    md: "w-6 h-6", 
+    lg: "w-8 h-8"
+  }
+  
+  return (
+    <Loader className={`${sizeClasses[size]} animate-spin text-blue-400 ${className}`} />
+  )
+}
+
+// Error Message Component
+const ErrorMessage = ({ error, errorType, onRetry }: { 
+  error: string, 
+  errorType: 'network' | 'api' | 'data' | 'unknown' | null,
+  onRetry: () => void 
+}) => {
+  const getErrorIcon = () => {
+    switch (errorType) {
+      case 'network':
+        return <WifiOff className="w-5 h-5 text-red-400" />
+      case 'api':
+        return <AlertTriangle className="w-5 h-5 text-orange-400" />
+      case 'data':
+        return <AlertTriangle className="w-5 h-5 text-yellow-400" />
+      default:
+        return <AlertTriangle className="w-5 h-5 text-red-400" />
+    }
+  }
+
+  const getErrorTitle = () => {
+    switch (errorType) {
+      case 'network':
+        return "Connection Error"
+      case 'api':
+        return "API Error"
+      case 'data':
+        return "Data Error"
+      default:
+        return "Error"
+    }
+  }
+
+  const getErrorHelp = () => {
+    switch (errorType) {
+      case 'network':
+        return "Check your internet connection and try again."
+      case 'api':
+        return "The flight data service is temporarily unavailable. Please try again later."
+      case 'data':
+        return "Unable to process flight data. This may be temporary."
+      default:
+        return "An unexpected error occurred. Please try again."
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+      {getErrorIcon()}
+      <div className="flex-1">
+        <div className="text-sm font-medium text-red-400">
+          {getErrorTitle()}
+        </div>
+        <div className="text-xs text-slate-400">
+          {error}
+        </div>
+        <div className="text-xs text-slate-500 mt-1">
+          {getErrorHelp()}
+        </div>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onRetry}
+        className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+      >
+        <RefreshCw className="w-4 h-4" />
+      </Button>
+    </div>
+  )
+}
+
 export function UI() {
-  const { aircraft, selectedAircraft, setSelectedAircraft, isConnected, lastUpdate } = useFlightStore()
+  const { 
+    aircraft, 
+    selectedAircraft, 
+    setSelectedAircraft, 
+    isConnected, 
+    isLoading, 
+    error, 
+    errorType, 
+    lastUpdate,
+    clearError,
+    startDataFetching
+  } = useFlightStore()
   const [hoveredAircraft, setHoveredAircraft] = useState<any>(null)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [isVisible, setIsVisible] = useState(false)
+  const [aircraftCount, setAircraftCount] = useState(0)
+  const [inFlightCount, setInFlightCount] = useState(0)
+  const [avgAltitude, setAvgAltitude] = useState(0)
+  const [avgSpeed, setAvgSpeed] = useState(0)
 
+  // Calculate aircraft statistics
+  useEffect(() => {
+    const aircraftArray = Object.values(aircraft)
+    const total = aircraftArray.length
+    const inFlight = aircraftArray.filter(a => !a.on_ground).length
+    
+    const altitudes = aircraftArray
+      .map(a => a.baro_altitude)
+      .filter(alt => alt !== null && alt > 0)
+    const avgAlt = altitudes.length > 0 ? altitudes.reduce((sum, alt) => sum + alt!, 0) / altitudes.length : 0
+    
+    const speeds = aircraftArray
+      .map(a => a.velocity)
+      .filter(speed => speed !== null && speed > 0)
+    const avgSpd = speeds.length > 0 ? speeds.reduce((sum, speed) => sum + speed!, 0) / speeds.length : 0
+    
+    setAircraftCount(total)
+    setInFlightCount(inFlight)
+    setAvgAltitude(avgAlt)
+    setAvgSpeed(avgSpd)
+  }, [aircraft])
 
-
-  const aircraftCount = Object.keys(aircraft).length
+  // Handle retry
+  const handleRetry = () => {
+    clearError()
+    startDataFetching()
+  }
 
   // Animate in on mount
   useEffect(() => {
@@ -34,8 +157,6 @@ export function UI() {
       setHoveredAircraft(event.detail)
     }
 
-
-
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('aircraft-hover', handleAircraftHover as EventListener)
 
@@ -49,7 +170,7 @@ export function UI() {
 
   return (
     <>
-      {/* Header */}
+      {/* Enhanced Header */}
       <div className={`absolute top-6 left-6 z-10 transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
         <Card className="glass-effect-dark border-white/10 shadow-2xl hover-lift">
           <CardHeader className="pb-3">
@@ -67,43 +188,179 @@ export function UI() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Error Message */}
+            {error && (
+              <ErrorMessage 
+                error={error} 
+                errorType={errorType} 
+                onRetry={handleRetry}
+              />
+            )}
+
             {/* Connection Status */}
             <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
               <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400 animate-pulse-glow' : 'bg-red-400'}`}></div>
               <div className="flex-1">
                 <div className="text-sm font-medium text-white">
-                  {isConnected ? "Connected" : "Disconnected"}
+                  {isLoading ? "Loading..." : isConnected ? "Connected" : "Disconnected"}
                 </div>
                 <div className="text-xs text-slate-400">
-                  {isConnected ? "Live data streaming" : "Reconnecting..."}
+                  {isLoading ? "Fetching aircraft data..." : isConnected ? "Live data streaming" : "Reconnecting..."}
                 </div>
               </div>
-              {isConnected ? <Wifi className="w-4 h-4 text-green-400" /> : <WifiOff className="w-4 h-4 text-red-400" />}
+              {isLoading ? (
+                <LoadingSpinner size="sm" />
+              ) : isConnected ? (
+                <Wifi className="w-4 h-4 text-green-400" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-red-400" />
+              )}
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
-                <div className="text-2xl font-bold text-gradient-blue">{aircraftCount}</div>
-                <div className="text-xs text-slate-400">Aircraft</div>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                <div className="text-2xl font-bold text-green-400">
-                  {Math.round((aircraftCount / 1000) * 100)}%
+            {/* Enhanced Aircraft Count Display */}
+            <div className="space-y-3">
+              {/* Main Aircraft Count */}
+              <div className="text-center p-4 rounded-lg bg-gradient-to-br from-blue-500/15 to-purple-500/15 border border-blue-500/30 relative overflow-hidden hover-stat animate-stat-pulse">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 animate-pulse"></div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 animate-data-flow"></div>
+                <div className="relative z-10">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <LoadingSpinner size="lg" />
+                      <div className="text-sm text-slate-300 font-medium">Loading Aircraft</div>
+                      <div className="text-xs text-slate-400">Fetching data...</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-4xl font-bold text-gradient-blue animate-count-up">
+                        {aircraftCount}
+                      </div>
+                      <div className="text-sm text-slate-300 font-medium">Total Aircraft</div>
+                      <div className="flex items-center justify-center gap-2 mt-2">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                        <div className="text-xs text-slate-400">Live Tracking</div>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="text-xs text-slate-400">Coverage</div>
+              </div>
+
+              {/* Detailed Stats Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* In Flight Count */}
+                <div className="text-center p-3 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 hover-stat animate-metric-glow">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <LoadingSpinner size="sm" />
+                      <div className="text-xs text-slate-400">Loading...</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Zap className="w-3 h-3 text-green-400 stat-icon" />
+                        <div className="text-lg font-bold text-green-400 animate-count-up">{inFlightCount}</div>
+                      </div>
+                      <div className="text-xs text-slate-400">In Flight</div>
+                    </>
+                  )}
+                </div>
+
+                {/* On Ground Count */}
+                <div className="text-center p-3 rounded-lg bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 hover-stat animate-metric-glow">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <LoadingSpinner size="sm" />
+                      <div className="text-xs text-slate-400">Loading...</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Target className="w-3 h-3 text-orange-400 stat-icon" />
+                        <div className="text-lg font-bold text-orange-400 animate-count-up">{aircraftCount - inFlightCount}</div>
+                      </div>
+                      <div className="text-xs text-slate-400">On Ground</div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Average Metrics */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-3 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover-stat">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <LoadingSpinner size="sm" />
+                      <div className="text-xs text-slate-400">Loading...</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-sm font-bold text-purple-400 animate-count-up">
+                        {avgAltitude > 0 ? `${Math.round(avgAltitude / 1000)}k` : 'N/A'}
+                      </div>
+                      <div className="text-xs text-slate-400">Avg Altitude</div>
+                    </>
+                  )}
+                </div>
+                <div className="text-center p-3 rounded-lg bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 hover-stat">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <LoadingSpinner size="sm" />
+                      <div className="text-xs text-slate-400">Loading...</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-sm font-bold text-cyan-400 animate-count-up">
+                        {avgSpeed > 0 ? `${Math.round(avgSpeed)}` : 'N/A'}
+                      </div>
+                      <div className="text-xs text-slate-400">Avg Speed (kt)</div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Coverage Indicator */}
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                {isLoading ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-blue-500 rounded-full animate-pulse"></div>
+                )}
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-white">
+                    {isLoading ? "Calculating..." : `${Math.round((aircraftCount / 1000) * 100)}% Coverage`}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    {isLoading ? "Processing aircraft data..." : aircraftCount > 0 ? `${aircraftCount} aircraft detected` : 'No aircraft detected'}
+                  </div>
+                </div>
+                {isLoading ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <Users className="w-4 h-4 text-slate-400" />
+                )}
               </div>
             </div>
 
             {/* Last Update */}
-            {lastUpdate && (
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <Clock className="w-3 h-3" />
-                <span>Updated {new Date(lastUpdate).toLocaleTimeString()}</span>
-              </div>
-            )}
-
-
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              {isLoading ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  <span>Updating data...</span>
+                </>
+              ) : lastUpdate ? (
+                <>
+                  <Clock className="w-3 h-3" />
+                  <span>Updated {new Date(lastUpdate).toLocaleTimeString()}</span>
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                </>
+              ) : (
+                <>
+                  <Clock className="w-3 h-3" />
+                  <span>No data available</span>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -184,13 +441,13 @@ export function UI() {
               {/* Additional Details */}
               <div className="pt-4 border-t border-white/10">
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
+                <div>
                     <div className="text-slate-400 text-xs">Heading</div>
                     <div className="text-white">
                       {selectedAircraft.true_track ? `${selectedAircraft.true_track}°` : "N/A"}
                     </div>
-                  </div>
-                  <div>
+                </div>
+                <div>
                     <div className="text-slate-400 text-xs">Vertical Rate</div>
                     <div className="text-white">
                       {selectedAircraft.vertical_rate ? `${selectedAircraft.vertical_rate} ft/min` : "N/A"}
@@ -216,25 +473,79 @@ export function UI() {
       {/* Enhanced Tooltip */}
       {hoveredAircraft && (
         <div 
-          className="fixed z-[60] glass-effect-dark border-white/10 shadow-2xl p-3 rounded-lg pointer-events-none animate-scale-in"
+          className="fixed z-[60] glass-effect-dark border-white/10 shadow-2xl rounded-xl pointer-events-none animate-tooltip-slide-in animate-tooltip-glow overflow-hidden"
           style={{ 
             left: mousePosition.x + 15, 
-            top: mousePosition.y - 15 
+            top: mousePosition.y - 15,
+            maxWidth: '280px'
           }}
         >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-            <div className="font-bold text-white text-sm">{hoveredAircraft.callsign || "Unknown"}</div>
+          {/* Tooltip Header */}
+          <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 p-3 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Plane className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold text-white text-sm">
+                  {hoveredAircraft.callsign || "Unknown Flight"}
+                </div>
+                <div className="text-xs text-slate-400 font-mono">
+                  {hoveredAircraft.icao24}
+                </div>
+              </div>
+              <div className={`w-3 h-3 rounded-full ${hoveredAircraft.on_ground ? 'bg-green-400' : 'bg-purple-400'} animate-pulse`}></div>
+            </div>
           </div>
-          <div className="space-y-1 text-xs">
-            <div className="text-slate-300">
-              Alt: <span className="text-white">{hoveredAircraft.baro_altitude || "N/A"}ft</span>
+
+          {/* Tooltip Content */}
+          <div className="p-3 space-y-3">
+            {/* Primary Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center p-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 tooltip-stat">
+                <div className="text-lg font-bold text-blue-400">
+                  {hoveredAircraft.baro_altitude ? `${Math.round(hoveredAircraft.baro_altitude / 1000)}k` : 'N/A'}
+                </div>
+                <div className="text-xs text-slate-400">Altitude (ft)</div>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 tooltip-stat">
+                <div className="text-lg font-bold text-green-400">
+                  {hoveredAircraft.velocity ? Math.round(hoveredAircraft.velocity) : 'N/A'}
+                </div>
+                <div className="text-xs text-slate-400">Speed (kt)</div>
+              </div>
             </div>
-            <div className="text-slate-300">
-              Speed: <span className="text-white">{hoveredAircraft.velocity || "N/A"}kt</span>
+
+            {/* Secondary Info */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Heading</span>
+                <span className="text-white font-mono">
+                  {hoveredAircraft.true_track ? `${Math.round(hoveredAircraft.true_track)}°` : 'N/A'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Vertical Rate</span>
+                <span className="text-white font-mono">
+                  {hoveredAircraft.vertical_rate ? `${Math.round(hoveredAircraft.vertical_rate)} ft/min` : 'N/A'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Country</span>
+                <span className="text-white truncate ml-2">
+                  {hoveredAircraft.origin_country}
+                </span>
+              </div>
             </div>
-            <div className="text-slate-300">
-              Heading: <span className="text-white">{hoveredAircraft.true_track || "N/A"}°</span>
+
+            {/* Status Badge */}
+            <div className="flex justify-center pt-2 border-t border-white/10">
+              <Badge 
+                variant="secondary"
+                className={`text-xs ${hoveredAircraft.on_ground ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-purple-500/20 text-purple-400 border-purple-500/30'}`}
+              >
+                {hoveredAircraft.on_ground ? "On Ground" : "In Flight"}
+              </Badge>
             </div>
           </div>
         </div>

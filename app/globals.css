@@ -109,6 +109,71 @@ body {
   100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; }
 }
 
+@keyframes countUp {
+  from { 
+    transform: scale(1.2);
+    opacity: 0;
+  }
+  to { 
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes statPulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% { 
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes dataFlow {
+  0% { 
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% { 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes metricGlow {
+  0%, 100% { 
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+  50% { 
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes tooltipSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tooltipGlow {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+  }
+}
+
 /* Utility classes */
 @layer utilities {
   .text-balance {
@@ -152,6 +217,52 @@ body {
   .animate-gradient-shift {
     background-size: 200% 200%;
     animation: gradientShift 3s ease infinite;
+  }
+  
+  .animate-count-up {
+    animation: countUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .animate-stat-pulse {
+    animation: statPulse 2s ease-in-out infinite;
+  }
+  
+  .animate-data-flow {
+    animation: dataFlow 3s linear infinite;
+  }
+  
+  .animate-metric-glow {
+    animation: metricGlow 2s ease-in-out infinite;
+  }
+  
+  .animate-tooltip-slide-in {
+    animation: tooltipSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .animate-tooltip-glow {
+    animation: tooltipGlow 2s ease-in-out infinite;
+  }
+  
+  .hover-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  }
+  
+  .hover-stat:hover .stat-icon {
+    transform: scale(1.1) rotate(5deg);
+  }
+  
+  .stat-icon {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .tooltip-stat {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .tooltip-stat:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
   }
   
   .glass-effect {

@@ -19,7 +19,21 @@ function ErrorFallback() {
       <div className="text-center animate-fade-in">
         <div className="text-4xl mb-4 animate-float">🌍</div>
         <div className="text-xl mb-2 font-semibold">3D Environment Error</div>
-        <div className="text-sm text-slate-400">Please refresh the page to try again</div>
+        <div className="text-sm text-slate-400 mb-4">Unable to load the 3D globe</div>
+        <div className="text-xs text-slate-500 max-w-md">
+          This could be due to:
+          <ul className="mt-2 text-left space-y-1">
+            <li>• WebGL not supported in your browser</li>
+            <li>• Graphics driver issues</li>
+            <li>• Insufficient system resources</li>
+          </ul>
+        </div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+        >
+          Refresh Page
+        </button>
       </div>
     </div>
   )
@@ -32,7 +46,10 @@ function LoadingFallback() {
       <div className="text-center animate-fade-in">
         <div className="text-4xl mb-4 animate-spin">🌍</div>
         <div className="text-xl mb-2 font-semibold">Loading 3D Globe...</div>
-        <div className="text-sm text-slate-400">Initializing Three.js components</div>
+        <div className="text-sm text-slate-400 mb-2">Initializing Three.js components</div>
+        <div className="text-xs text-slate-500">
+          This may take a moment on slower devices
+        </div>
       </div>
     </div>
   )

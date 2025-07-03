@@ -2,6 +2,7 @@
 
 import { useRef, useMemo } from "react"
 import { useFrame } from "@react-three/fiber"
+import { Html } from "@react-three/drei"
 import { useFlightStore } from "@/lib/stores/flight-store"
 import type { InstancedMesh } from "three"
 import * as THREE from "three"
@@ -86,8 +87,27 @@ export function AircraftLayer() {
 
 
   if (aircraftArray.length === 0) {
-    console.log("No aircraft to render")
-    return null
+    return (
+      <group>
+        {/* Show a helpful message when no aircraft are available */}
+        <Html position={[0, 1.5, 0]} center>
+          <div className="bg-black/80 text-white p-4 rounded-lg text-center max-w-xs">
+            <div className="text-lg mb-2">No Aircraft Found</div>
+            <div className="text-sm text-slate-300">
+              This could be due to:
+            </div>
+            <ul className="text-xs text-slate-400 mt-2 space-y-1">
+              <li>• No flights in this area</li>
+              <li>• Data service temporarily unavailable</li>
+              <li>• Network connection issues</li>
+            </ul>
+            <div className="text-xs text-blue-400 mt-3">
+              Try refreshing or check back later
+            </div>
+          </div>
+        </Html>
+      </group>
+    )
   }
 
 
