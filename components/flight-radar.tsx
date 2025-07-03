@@ -90,11 +90,7 @@ export default function FlightRadar() {
               shadow-mapSize-width={2048}
               shadow-mapSize-height={2048}
             />
-            <pointLight 
-              position={[-10, -10, -5]} 
-              intensity={0.5}
-              color={new THREE.Color(0x3b82f6)}
-            />
+
 
             <Globe />
             <AircraftLayer />

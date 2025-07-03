@@ -90,30 +90,7 @@ export function AircraftLayer() {
     return null
   }
 
-  // Enhanced materials with better visual effects
-  const createAircraftMaterial = (isSelected: boolean) => {
-    if (isSelected) {
-      return new THREE.MeshStandardMaterial({
-        color: new THREE.Color(0x3b82f6), // Blue
-        emissive: new THREE.Color(0x1d4ed8),
-        emissiveIntensity: 0.5,
-        metalness: 0.8,
-        roughness: 0.2,
-        transparent: true,
-        opacity: 0.9,
-      })
-    }
-    
-    return new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0x10b981), // Green
-      emissive: new THREE.Color(0x059669),
-      emissiveIntensity: 0.3,
-      metalness: 0.6,
-      roughness: 0.4,
-      transparent: true,
-      opacity: 0.8,
-    })
-  }
+
 
   // Use individual meshes for better interaction when aircraft count is low
   if (aircraftArray.length < 20) {
@@ -122,7 +99,6 @@ export function AircraftLayer() {
         {aircraftArray.map((plane, index) => {
           const position = positions[index]
           const isSelected = selectedAircraft?.icao24 === plane.icao24
-          const material = createAircraftMaterial(isSelected)
           
           return (
             <group key={plane.icao24} position={[position.x, position.y, position.z]}>
@@ -148,8 +124,8 @@ export function AircraftLayer() {
               >
                 <coneGeometry args={[1, 3, 6]} />
                 <meshStandardMaterial
-                  color={isSelected ? new THREE.Color(0x3b82f6) : new THREE.Color(0x10b981)}
-                  emissive={isSelected ? new THREE.Color(0x1d4ed8) : new THREE.Color(0x059669)}
+                  color={isSelected ? new THREE.Color(0xff6b6b) : new THREE.Color(0x10b981)}
+                  emissive={isSelected ? new THREE.Color(0xff3333) : new THREE.Color(0x059669)}
                   emissiveIntensity={isSelected ? 0.5 : 0.3}
                   metalness={0.6}
                   roughness={0.4}
@@ -158,31 +134,11 @@ export function AircraftLayer() {
                 />
               </mesh>
 
-              {/* Glow effect for selected aircraft */}
-              {isSelected && (
-                <mesh>
-                  <sphereGeometry args={[2, 16, 16]} />
-                  <meshBasicMaterial
-                    color={new THREE.Color(0x3b82f6)}
-                    transparent
-                    opacity={0.1}
-                  />
-                </mesh>
-              )}
 
 
 
-              {/* Trail effect for moving aircraft */}
-              {plane.velocity && plane.velocity > 50 && (
-                <mesh position={[-1.5, 0, 0]}>
-                  <cylinderGeometry args={[0.1, 0.1, 2, 8]} />
-                  <meshBasicMaterial
-                    color={new THREE.Color(0x3b82f6)}
-                    transparent
-                    opacity={0.3}
-                  />
-                </mesh>
-              )}
+
+
             </group>
           )
         })}

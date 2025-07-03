@@ -45,7 +45,7 @@ export function AnimatedBackground() {
           vy: (Math.random() - 0.5) * 0.5,
           size: Math.random() * 3 + 1,
           opacity: Math.random() * 0.5 + 0.1,
-          color: `hsl(${Math.random() * 60 + 200}, 70%, 60%)` // Blue to purple range
+          color: `hsl(${Math.random() * 60 + 250}, 70%, 60%)` // Purple to pink range
         })
       }
       particlesRef.current = particles
@@ -62,8 +62,8 @@ export function AnimatedBackground() {
         canvas.width / 2, canvas.height / 2, 0,
         canvas.width / 2, canvas.height / 2, canvas.width / 2
       )
-      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.1)')
-      gradient.addColorStop(0.5, 'rgba(139, 92, 246, 0.05)')
+      gradient.addColorStop(0, 'rgba(139, 92, 246, 0.05)')
+      gradient.addColorStop(0.5, 'rgba(168, 85, 247, 0.03)')
       gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, canvas.width, canvas.height)

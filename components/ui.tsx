@@ -203,7 +203,7 @@ export function UI() {
               <div className="flex justify-center">
                 <Badge 
                   variant={selectedAircraft.on_ground ? "secondary" : "default"}
-                  className={`${selectedAircraft.on_ground ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}
+                  className={`${selectedAircraft.on_ground ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-purple-500/20 text-purple-400 border-purple-500/30'}`}
                 >
                   {selectedAircraft.on_ground ? "On Ground" : "In Flight"}
                 </Badge>
@@ -223,7 +223,7 @@ export function UI() {
           }}
         >
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+            <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
             <div className="font-bold text-white text-sm">{hoveredAircraft.callsign || "Unknown"}</div>
           </div>
           <div className="space-y-1 text-xs">
