@@ -58,11 +58,25 @@ function LoadingFallback() {
 export default function FlightRadar() {
   const { startDataFetching, stopDataFetching } = useFlightStore()
   const [hasError, setHasError] = useState(false)
+  const [controls, setControls] = useState<any>(null)
 
   useEffect(() => {
     startDataFetching()
     return () => stopDataFetching()
   }, [startDataFetching, stopDataFetching])
+
+  // Handle reset view shortcut
+  useEffect(() => {
+    const handleResetView = () => {
+      if (controls) {
+        // Reset camera to default position
+        controls.reset()
+      }
+    }
+
+    window.addEventListener('reset-view', handleResetView)
+    return () => window.removeEventListener('reset-view', handleResetView)
+  }, [controls])
 
   if (hasError) {
     return <ErrorFallback />
@@ -113,6 +127,7 @@ export default function FlightRadar() {
             <AircraftLayer />
 
             <OrbitControls
+              ref={setControls}
               enablePan={true}
               enableZoom={true}
               enableRotate={true}

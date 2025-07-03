@@ -28,6 +28,7 @@ export interface FlightStore {
   selectedAircraft: AircraftState | null
   isConnected: boolean
   isLoading: boolean
+  isPaused: boolean
   error: string | null
   errorType: 'network' | 'api' | 'data' | 'unknown' | null
   lastUpdate: number | null
@@ -37,6 +38,7 @@ export interface FlightStore {
   setLoading: (loading: boolean) => void
   setError: (error: string | null, type?: 'network' | 'api' | 'data' | 'unknown') => void
   clearError: () => void
+  togglePause: () => void
   startDataFetching: () => void
   stopDataFetching: () => void
 }

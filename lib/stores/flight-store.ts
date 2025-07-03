@@ -35,6 +35,9 @@ export const useFlightStore = create<FlightStore>((set, get) => {
   }
 
   const fetchFlightData = async () => {
+    // Don't fetch if paused
+    if (get().isPaused) return
+    
     // Set loading state
     set((state) => ({ ...state, isLoading: true, error: null, errorType: null }))
     
@@ -181,6 +184,7 @@ export const useFlightStore = create<FlightStore>((set, get) => {
     selectedAircraft: null,
     isConnected: false,
     isLoading: false,
+    isPaused: false,
     error: null,
     errorType: null,
     lastUpdate: null,
@@ -202,6 +206,25 @@ export const useFlightStore = create<FlightStore>((set, get) => {
     setError: (error, type = 'unknown') => set({ error, errorType: type }),
     
     clearError: () => set({ error: null, errorType: null }),
+
+    togglePause: () => {
+      const currentState = get()
+      set({ isPaused: !currentState.isPaused })
+      
+      if (currentState.isPaused) {
+        // Resume - start fetching again
+        if (!intervalId) {
+          fetchFlightData()
+          intervalId = setInterval(fetchFlightData, FETCH_INTERVAL)
+        }
+      } else {
+        // Pause - stop the interval but keep the current data
+        if (intervalId) {
+          clearInterval(intervalId)
+          intervalId = null
+        }
+      }
+    },
 
     startDataFetching: () => {
       if (intervalId) {

@@ -4,7 +4,7 @@ import { useFlightStore } from "@/lib/stores/flight-store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Plane, Wifi, WifiOff, X, Globe, Activity, MapPin, Clock, TrendingUp, Zap, Target, Users, Loader, AlertTriangle, RefreshCw } from "lucide-react"
+import { Plane, Wifi, WifiOff, X, Globe, Activity, MapPin, Clock, TrendingUp, Zap, Target, Users, Loader, AlertTriangle, RefreshCw, Pause, Play, RotateCcw } from "lucide-react"
 import { useState, useEffect } from "react"
 import { FlightStats } from "./flight-stats"
 
@@ -99,11 +99,13 @@ export function UI() {
     setSelectedAircraft, 
     isConnected, 
     isLoading, 
+    isPaused,
     error, 
     errorType, 
     lastUpdate,
     clearError,
-    startDataFetching
+    startDataFetching,
+    togglePause
   } = useFlightStore()
   const [hoveredAircraft, setHoveredAircraft] = useState<any>(null)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
@@ -112,6 +114,8 @@ export function UI() {
   const [inFlightCount, setInFlightCount] = useState(0)
   const [avgAltitude, setAvgAltitude] = useState(0)
   const [avgSpeed, setAvgSpeed] = useState(0)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [shortcutFeedback, setShortcutFeedback] = useState<string | null>(null)
 
   // Calculate aircraft statistics
   useEffect(() => {
@@ -141,11 +145,55 @@ export function UI() {
     startDataFetching()
   }
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in input fields
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      switch (event.key.toLowerCase()) {
+        case ' ':
+          event.preventDefault()
+          togglePause()
+          setShortcutFeedback(isPaused ? 'Resumed data fetching' : 'Paused data fetching')
+          break
+        case 'r':
+          event.preventDefault()
+          // Reset view by dispatching a custom event
+          window.dispatchEvent(new CustomEvent('reset-view'))
+          setShortcutFeedback('Reset camera view')
+          break
+        case '?':
+        case 'h':
+          event.preventDefault()
+          setShowShortcuts(prev => !prev)
+          break
+        case 'escape':
+          setShowShortcuts(false)
+          setSelectedAircraft(null)
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [togglePause, setSelectedAircraft])
+
   // Animate in on mount
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 1000)
     return () => clearTimeout(timer)
   }, [])
+
+  // Clear shortcut feedback after 2 seconds
+  useEffect(() => {
+    if (shortcutFeedback) {
+      const timer = setTimeout(() => setShortcutFeedback(null), 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [shortcutFeedback])
 
   // Listen for hover events from the 3D scene
   useEffect(() => {
@@ -202,19 +250,42 @@ export function UI() {
               <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400 animate-pulse-glow' : 'bg-red-400'}`}></div>
               <div className="flex-1">
                 <div className="text-sm font-medium text-white">
-                  {isLoading ? "Loading..." : isConnected ? "Connected" : "Disconnected"}
+                  {isLoading ? "Loading..." : isPaused ? "Paused" : isConnected ? "Connected" : "Disconnected"}
                 </div>
                 <div className="text-xs text-slate-400">
-                  {isLoading ? "Fetching aircraft data..." : isConnected ? "Live data streaming" : "Reconnecting..."}
+                  {isLoading ? "Fetching aircraft data..." : isPaused ? "Data paused - Press Space to resume" : isConnected ? "Live data streaming" : "Reconnecting..."}
                 </div>
               </div>
-              {isLoading ? (
-                <LoadingSpinner size="sm" />
-              ) : isConnected ? (
-                <Wifi className="w-4 h-4 text-green-400" />
-              ) : (
-                <WifiOff className="w-4 h-4 text-red-400" />
-              )}
+              <div className="flex items-center gap-2">
+                {isLoading ? (
+                  <LoadingSpinner size="sm" />
+                ) : isPaused ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={togglePause}
+                    className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/20"
+                    title="Resume (Space)"
+                  >
+                    <Play className="w-4 h-4" />
+                  </Button>
+                ) : isConnected ? (
+                  <div className="flex items-center gap-2">
+                    <Wifi className="w-4 h-4 text-green-400" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={togglePause}
+                      className="text-green-400 hover:text-green-300 hover:bg-green-500/20"
+                      title="Pause (Space)"
+                    >
+                      <Pause className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <WifiOff className="w-4 h-4 text-red-400" />
+                )}
+              </div>
             </div>
 
             {/* Enhanced Aircraft Count Display */}
@@ -576,6 +647,121 @@ export function UI() {
 
       {/* Flight Statistics */}
       <FlightStats />
+
+      {/* Keyboard Shortcuts Indicator */}
+      <div className="fixed bottom-4 left-4 z-50">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowShortcuts(true)}
+          className="glass-effect-dark border-white/10 text-slate-400 hover:text-white hover:bg-white/10 text-xs"
+          title="Show keyboard shortcuts (? or H)"
+        >
+          <span className="mr-1">⌨️</span>
+          Shortcuts
+        </Button>
+      </div>
+
+      {/* Shortcut Feedback */}
+      {shortcutFeedback && (
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[90] animate-scale-in">
+          <div className="glass-effect-dark border-white/20 px-4 py-2 rounded-lg shadow-2xl">
+            <div className="text-sm font-medium text-white text-center">
+              {shortcutFeedback}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcuts Help */}
+      {showShortcuts && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <Card className="glass-effect-dark border-white/10 shadow-2xl w-96 animate-scale-in">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white text-lg">Keyboard Shortcuts</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowShortcuts(false)}
+                  className="text-slate-400 hover:text-white hover:bg-white/10"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <Pause className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white">Pause/Resume</div>
+                      <div className="text-xs text-slate-400">Toggle data fetching</div>
+                    </div>
+                  </div>
+                  <div className="px-2 py-1 bg-white/10 rounded text-xs font-mono text-white">
+                    Space
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                      <RotateCcw className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white">Reset View</div>
+                      <div className="text-xs text-slate-400">Reset camera position</div>
+                    </div>
+                  </div>
+                  <div className="px-2 py-1 bg-white/10 rounded text-xs font-mono text-white">
+                    R
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                      <X className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white">Close Panel</div>
+                      <div className="text-xs text-slate-400">Close aircraft details</div>
+                    </div>
+                  </div>
+                  <div className="px-2 py-1 bg-white/10 rounded text-xs font-mono text-white">
+                    Esc
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">?</span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-white">Show/Hide Help</div>
+                      <div className="text-xs text-slate-400">Toggle this panel</div>
+                    </div>
+                  </div>
+                  <div className="px-2 py-1 bg-white/10 rounded text-xs font-mono text-white">
+                    ? or H
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10">
+                <div className="text-xs text-slate-400 text-center">
+                  Press any key to close this panel
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </>
   )
 }
